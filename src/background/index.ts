@@ -8,6 +8,7 @@ import {
 } from '../shared/types';
 import { AMAZON_ORDER_HISTORY_URLS, SCRAPER_MESSAGE_SCOPE } from '../shared/constants';
 import type { ScraperStartPayload } from '../shared/scraperMessages';
+import { ordersToCsv } from '../shared/csv';
 
 let session: ScrapeSessionSnapshot = createEmptySession();
 
@@ -62,18 +63,34 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
   const nextInvoices =
     typeof changes.invoicesQueued === 'number' ? Math.max(changes.invoicesQueued, 0) : session.invoicesQueued;
 
+  const csvUrlNeedsUpdate = Boolean(changes.orders) || (!mergedOrders.length && session.csvExportUrl);
+  if (csvUrlNeedsUpdate && session.csvExportUrl) {
+    URL.revokeObjectURL(session.csvExportUrl);
+  }
+  const csvExportUrl = csvUrlNeedsUpdate
+    ? mergedOrders.length
+      ? URL.createObjectURL(new Blob([ordersToCsv(mergedOrders)], { type: 'text/csv;charset=utf-8;' }))
+      : undefined
+    : session.csvExportUrl;
+
   session = {
     ...session,
     ...changes,
     orders: mergedOrders,
     ordersCollected: Math.min(ordersCount, session.ordersLimit),
     invoicesQueued: nextInvoices,
+    csvExportUrl,
     updatedAt: Date.now(),
+    hasMorePages:
+      typeof changes.hasMorePages === 'boolean' ? changes.hasMorePages : session.hasMorePages ?? undefined,
   };
   void persistSession();
 };
 
 const resetSession = () => {
+  if (session.csvExportUrl) {
+    URL.revokeObjectURL(session.csvExportUrl);
+  }
   session = createEmptySession();
   void persistSession();
 };
@@ -121,6 +138,9 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   }
   if (payload.orders && payload.orders.length) {
     changes.orders = payload.orders;
+  }
+  if (typeof payload.hasMorePages === 'boolean') {
+    changes.hasMorePages = payload.hasMorePages;
   }
   if (changes.ordersCollected && changes.ordersCollected >= session.ordersLimit) {
     changes.phase = 'completed';

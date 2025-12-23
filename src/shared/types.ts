@@ -48,6 +48,7 @@ export interface ScrapeSessionSnapshot {
   ordersLimit: number;
   orders: OrderSummary[];
   csvExportUrl?: string;
+  hasMorePages?: boolean;
   message?: string;
   yearFilter?: number;
   startedAt?: number;
@@ -78,6 +79,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   ordersLimit: MAX_ORDERS_PER_RUN,
   orders: [],
   csvExportUrl: undefined,
+  hasMorePages: undefined,
   message: undefined,
   yearFilter: undefined,
   startedAt: undefined,
