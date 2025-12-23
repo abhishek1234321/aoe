@@ -2,15 +2,43 @@ import { MAX_ORDERS_PER_RUN } from './constants';
 
 export type ScrapePhase = 'idle' | 'running' | 'completed' | 'error';
 
+export interface OrderAction {
+  label: string;
+  href: string;
+}
+
+export interface OrderItem {
+  title: string;
+  url?: string;
+  asin?: string;
+  imageUrl?: string;
+}
+
+export interface OrderShipment {
+  statusPrimary?: string;
+  statusSecondary?: string;
+  actions: OrderAction[];
+  items: OrderItem[];
+}
+
+export interface OrderTotal {
+  raw: string | null;
+  amount?: number;
+  currencySymbol?: string;
+}
+
 export interface OrderSummary {
   orderId: string;
-  orderDate: string;
+  orderDateText?: string;
+  orderDateISO?: string;
   buyerName?: string;
-  totalAmount: string;
+  totalAmount?: string;
+  total: OrderTotal;
   currency?: string;
   itemCount: number;
   invoiceUrl?: string;
   status?: string;
+  shipments: OrderShipment[];
 }
 
 export interface ScrapeSessionSnapshot {
