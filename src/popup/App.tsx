@@ -1,11 +1,13 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { MAX_ORDERS_PER_RUN } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
+import { ordersToCsv } from '@shared/csv';
 import type { ScrapeSessionSnapshot } from '@shared/types';
 
-const downloadCsv = (url: string) => {
+const downloadCsv = (csvText: string) => {
   const anchor = document.createElement('a');
-  anchor.href = url;
+  const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+  anchor.href = URL.createObjectURL(blob);
   anchor.download = 'amazon-orders.csv';
   document.body.appendChild(anchor);
   anchor.click();
@@ -45,16 +47,45 @@ const formatTimestamp = (timestamp?: number) => {
 const App = () => {
   const { session, setSession, loading, setLoading, error, setError, refresh } = useSessionState();
   const [year, setYear] = useState<string>('');
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [isOnOrderPage, setIsOnOrderPage] = useState<boolean | null>(null);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const fetchContext = async () => {
+      const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot; isSupported: boolean }>({
+        type: 'GET_CONTEXT',
+      });
+      if (response.success) {
+        if (response.data?.state) {
+          setSession(response.data.state);
+        }
+        setIsOnOrderPage(Boolean(response.data?.isSupported));
+      }
+    };
+
+    const fetchYears = async () => {
+      const response = await sendRuntimeMessage<{ years: number[] }>({
+        type: 'GET_AVAILABLE_YEARS',
+      });
+      if (response.success && response.data?.years?.length) {
+        setAvailableYears(response.data.years);
+      }
+    };
+
+    void fetchContext();
+    void fetchYears();
+  }, [setSession]);
+
   const isRunning = session?.phase === 'running';
+  const isBlockedPage = isOnOrderPage === false;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (loading || isRunning) {
+    if (loading || isRunning || isOnOrderPage === false) {
       return;
     }
     setLoading(true);
@@ -114,7 +145,16 @@ const App = () => {
   const activeError = error ?? session?.errorMessage ?? null;
   const showReset =
     Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
-  const canDownload = Boolean(session?.csvExportUrl && session.ordersCollected > 0);
+  const canDownload = Boolean(session?.orders?.length);
+  const canStart = !loading && !isRunning && isOnOrderPage !== false;
+
+  const yearOptions = useMemo(() => {
+    if (availableYears.length) {
+      return availableYears;
+    }
+    const current = new Date().getFullYear();
+    return [current, current - 1, current - 2];
+  }, [availableYears]);
 
   return (
     <div style={{ minWidth: '320px', maxWidth: '360px' }}>
@@ -133,26 +173,31 @@ const App = () => {
           >
             Optional year filter
           </label>
-          <input
+          <select
             id="year"
-            type="number"
-            min={2004}
-            max={new Date().getFullYear()}
-            placeholder="All years"
             value={year}
             onChange={(event) => setYear(event.target.value)}
+            disabled={isBlockedPage}
             style={{
               width: '100%',
               padding: '8px',
               borderRadius: '6px',
               border: '1px solid #d1d5db',
               marginBottom: '8px',
+              backgroundColor: '#fff',
             }}
-          />
+          >
+            <option value="">All years</option>
+            {yearOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
 
           <button
             type="submit"
-            disabled={loading || isRunning}
+            disabled={!canStart}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -160,8 +205,8 @@ const App = () => {
               border: 'none',
               fontWeight: 600,
               color: '#fff',
-              backgroundColor: loading || isRunning ? '#94a3b8' : '#232f3e',
-              cursor: loading || isRunning ? 'not-allowed' : 'pointer',
+              backgroundColor: canStart ? '#232f3e' : '#94a3b8',
+              cursor: canStart ? 'pointer' : 'not-allowed',
             }}
           >
             {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
@@ -191,6 +236,11 @@ const App = () => {
       </section>
 
       <section style={{ marginTop: '16px', fontSize: '13px', color: '#1f2937' }}>
+        {isOnOrderPage === false && (
+          <p style={{ color: '#b91c1c', marginBottom: '8px' }}>
+            Please open the Amazon.in order history page before starting a scrape.
+          </p>
+        )}
         <p style={{ margin: '0 0 8px' }}>
           <strong>Status:</strong> {statusMessage}
         </p>
@@ -199,19 +249,18 @@ const App = () => {
         ) : (
           <p style={{ margin: 0 }}>Filtering year: All</p>
         )}
-        <ul style={{ paddingLeft: '20px', margin: '12px 0' }}>
-          <li>
-            Orders collected:{' '}
-            <strong>
-              {session?.ordersCollected ?? 0}/{session?.ordersLimit ?? MAX_ORDERS_PER_RUN}
-            </strong>
-          </li>
-          <li>
-            Invoices queued: <strong>{session?.invoicesQueued ?? 0}</strong>
-          </li>
-          <li>Started: {formatTimestamp(session?.startedAt)}</li>
-          <li>Completed: {formatTimestamp(session?.completedAt)}</li>
-        </ul>
+        <dl style={{ margin: '12px 0', display: 'grid', gridTemplateColumns: 'auto 1fr', rowGap: '6px' }}>
+          <dt style={{ fontWeight: 600 }}>Orders collected:</dt>
+          <dd style={{ margin: 0 }}>
+            {session?.ordersCollected ?? 0}/{session?.ordersLimit ?? MAX_ORDERS_PER_RUN}
+          </dd>
+          <dt style={{ fontWeight: 600 }}>Invoices queued:</dt>
+          <dd style={{ margin: 0 }}>{session?.invoicesQueued ?? 0}</dd>
+          <dt style={{ fontWeight: 600 }}>Started:</dt>
+          <dd style={{ margin: 0 }}>{formatTimestamp(session?.startedAt)}</dd>
+          <dt style={{ fontWeight: 600 }}>Completed:</dt>
+          <dd style={{ margin: 0 }}>{formatTimestamp(session?.completedAt)}</dd>
+        </dl>
         {activeError ? (
           <p style={{ color: '#b91c1c', marginTop: '8px' }}>{activeError}</p>
         ) : (
@@ -220,7 +269,7 @@ const App = () => {
         {canDownload && (
           <button
             type="button"
-            onClick={() => session?.csvExportUrl && downloadCsv(session.csvExportUrl)}
+            onClick={() => session?.orders && downloadCsv(ordersToCsv(session.orders))}
             style={{
               width: '100%',
               marginTop: '12px',

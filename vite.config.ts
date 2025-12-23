@@ -4,38 +4,65 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 
-const input = {
-  popup: resolve(root, 'popup.html'),
-  background: resolve(root, 'src/background/index.ts'),
-  content: resolve(root, 'src/content/index.ts'),
-};
-
-export default defineConfig({
+const sharedConfig = {
   plugins: [react()],
   resolve: {
     alias: {
       '@shared': resolve(root, 'src/shared'),
     },
   },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    sourcemap: true,
-    rollupOptions: {
-      input,
-      output: {
-        entryFileNames: (chunk) => {
-          if (chunk.name === 'background') {
-            return 'background.js';
-          }
-          if (chunk.name === 'content') {
-            return 'content.js';
-          }
-          return 'assets/[name].js';
+} as const;
+
+export default defineConfig(({ mode }) => {
+  const isContentBuild = mode === 'content';
+  const shouldMinify = process.env.VITE_MINIFY !== 'false';
+  const shouldSourcemap = process.env.VITE_SOURCEMAP === 'true';
+
+  if (isContentBuild) {
+    return {
+      ...sharedConfig,
+      build: {
+        outDir: 'dist',
+        emptyOutDir: false,
+        sourcemap: shouldSourcemap,
+        minify: shouldMinify ? 'esbuild' : false,
+        rollupOptions: {
+          input: {
+            content: resolve(root, 'src/content/index.ts'),
+          },
+          output: {
+            format: 'iife',
+            inlineDynamicImports: true,
+            entryFileNames: () => 'content.js',
+          },
         },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    };
+  }
+
+  return {
+    ...sharedConfig,
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: shouldSourcemap,
+      rollupOptions: {
+        input: {
+          popup: resolve(root, 'popup.html'),
+          background: resolve(root, 'src/background/index.ts'),
+        },
+        output: {
+          format: 'es',
+          entryFileNames: (chunk) => {
+            if (chunk.name === 'background') {
+              return 'background.js';
+            }
+            return 'assets/[name].js';
+          },
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+        },
       },
     },
-  },
+  };
 });

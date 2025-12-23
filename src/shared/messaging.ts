@@ -11,6 +11,12 @@ export type RuntimeMessage =
       payload: ScrapeCommandPayload;
     }
   | {
+      type: 'GET_CONTEXT';
+    }
+  | {
+      type: 'GET_AVAILABLE_YEARS';
+    }
+  | {
       type: 'GET_STATE';
     }
   | {

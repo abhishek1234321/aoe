@@ -4,7 +4,8 @@
     "baseUrl": "https://www.amazon.in",
     "orderHistoryPaths": [
       "/gp/css/order-history",
-      "/gp/your-account/order-history"
+      "/gp/your-account/order-history",
+      "/your-orders"
     ]
   }
 ]

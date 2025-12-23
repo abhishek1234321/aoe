@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import { sendRuntimeMessage } from '@shared/messaging';
-import { AMAZON_ORDER_HISTORY_URLS } from '@shared/constants';
+import { AMAZON_ORDER_HISTORY_URLS, DEBUG_LOGGING } from '@shared/constants';
 import { parseOrdersFromDocument } from '@shared/orderParser';
 import type { ScrapeProgressPayload, ScrapeSessionSnapshot } from '@shared/types';
 import type { ScraperStartPayload } from '@shared/scraperMessages';
@@ -9,6 +9,12 @@ import { isScraperMessage } from '@shared/scraperMessages';
 const bannerId = '__aoe-dev-banner';
 let isScraping = false;
 const AUTO_SCRAPE_STORAGE_KEY = '__aoe:auto-scrape';
+const debugLog = (...args: unknown[]) => {
+  if (DEBUG_LOGGING) {
+    // eslint-disable-next-line no-console
+    console.info('[AOE:content]', ...args);
+  }
+};
 
 const allowedPaths = AMAZON_ORDER_HISTORY_URLS.map((url) => {
   try {
@@ -79,12 +85,14 @@ const saveAutoContinuePayload = (payload: ScraperStartPayload | null) => {
 
 const executeScrape = async (payload: ScraperStartPayload) => {
   if (isScraping) {
+    debugLog('Scrape already running, skipping duplicate');
     return;
   }
   isScraping = true;
 
   try {
     if (!isOrderHistoryPage()) {
+      debugLog('Not an order history page');
       await dispatchProgress({
         phase: 'error',
         errorMessage: 'This page does not look like Amazon order history.',
@@ -92,10 +100,12 @@ const executeScrape = async (payload: ScraperStartPayload) => {
       return;
     }
 
+    debugLog('Parsing orders for payload', payload);
     const orders = parseOrdersFromDocument(document);
     const invoiceCount = orders.filter((order) => Boolean(order.invoiceUrl)).length;
     const nextLink = getNextPageLink();
 
+    debugLog('Parsed orders', { count: orders.length, invoiceCount, hasNext: Boolean(nextLink) });
     const response = await dispatchProgress({
       orders,
       invoicesQueued: invoiceCount,
@@ -111,12 +121,15 @@ const executeScrape = async (payload: ScraperStartPayload) => {
       (nextState?.ordersCollected ?? 0) < (nextState?.ordersLimit ?? payload.limit ?? Infinity);
 
     if (shouldContinue && nextLink) {
+      debugLog('Auto-advancing to next page');
       saveAutoContinuePayload(payload);
       nextLink.click();
     } else {
+      debugLog('Stopping auto-advance', { shouldContinue, hasNext: Boolean(nextLink) });
       saveAutoContinuePayload(null);
     }
   } catch (error) {
+    debugLog('Error during scrape', error);
     await dispatchProgress({
       phase: 'error',
       errorMessage: error instanceof Error ? error.message : 'Failed to parse the current page.',
@@ -126,13 +139,43 @@ const executeScrape = async (payload: ScraperStartPayload) => {
   }
 };
 
+const extractAvailableYears = (): number[] => {
+  const select = document.querySelector<HTMLSelectElement>('#time-filter');
+  if (!select) {
+    return [];
+  }
+  const years = new Set<number>();
+  select.querySelectorAll('option').forEach((option) => {
+    const value = option.value ?? option.getAttribute('value') ?? '';
+    const match = value.match(/year-(\d{4})/i);
+    if (match) {
+      const parsed = Number(match[1]);
+      if (!Number.isNaN(parsed)) {
+        years.add(parsed);
+      }
+    }
+  });
+  return Array.from(years).sort((a, b) => b - a);
+};
+
 browser.runtime.onMessage.addListener((message: unknown) => {
-  if (!isScraperMessage(message)) {
+  if (isScraperMessage(message)) {
+    if (message.command === 'START') {
+      debugLog('Received START command', message.payload);
+      void executeScrape(message.payload);
+    }
     return undefined;
   }
 
-  if (message.command === 'START') {
-    void executeScrape(message.payload);
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    'command' in message &&
+    (message as { command: string }).command === 'GET_YEARS'
+  ) {
+    const years = extractAvailableYears();
+    debugLog('Extracted available years', years);
+    return Promise.resolve({ years });
   }
 
   return undefined;

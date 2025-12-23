@@ -24,7 +24,8 @@
       "matches": [
         "https://www.amazon.in/gp/css/order-history*",
         "https://www.amazon.in/gp/your-account/order-history*",
-        "https://www.amazon.in/*/order-history*"
+        "https://www.amazon.in/*/order-history*",
+        "https://www.amazon.in/your-orders*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

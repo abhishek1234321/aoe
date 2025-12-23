@@ -6,13 +6,19 @@ import {
   ScrapeProgressPayload,
   ScrapeSessionSnapshot,
 } from '../shared/types';
-import { AMAZON_ORDER_HISTORY_URLS, SCRAPER_MESSAGE_SCOPE } from '../shared/constants';
+import { AMAZON_ORDER_HISTORY_URLS, DEBUG_LOGGING, SCRAPER_MESSAGE_SCOPE } from '../shared/constants';
 import type { ScraperStartPayload } from '../shared/scraperMessages';
-import { ordersToCsv } from '../shared/csv';
 
 let session: ScrapeSessionSnapshot = createEmptySession();
 
 const SESSION_KEY = 'aoe:scrape-session';
+
+const debugLog = (...args: unknown[]) => {
+  if (DEBUG_LOGGING) {
+    // eslint-disable-next-line no-console
+    console.info('[AOE:bg]', ...args);
+  }
+};
 
 const persistSession = async () => {
   try {
@@ -54,6 +60,7 @@ const mergeOrders = (existing: OrderSummary[], incoming: OrderSummary[]): OrderS
 };
 
 const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
+  debugLog('updateSession', changes);
   const mergedOrders =
     changes.orders && changes.orders.length ? mergeOrders(session.orders, changes.orders) : session.orders;
   const ordersCount =
@@ -63,23 +70,12 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
   const nextInvoices =
     typeof changes.invoicesQueued === 'number' ? Math.max(changes.invoicesQueued, 0) : session.invoicesQueued;
 
-  const csvUrlNeedsUpdate = Boolean(changes.orders) || (!mergedOrders.length && session.csvExportUrl);
-  if (csvUrlNeedsUpdate && session.csvExportUrl) {
-    URL.revokeObjectURL(session.csvExportUrl);
-  }
-  const csvExportUrl = csvUrlNeedsUpdate
-    ? mergedOrders.length
-      ? URL.createObjectURL(new Blob([ordersToCsv(mergedOrders)], { type: 'text/csv;charset=utf-8;' }))
-      : undefined
-    : session.csvExportUrl;
-
   session = {
     ...session,
     ...changes,
     orders: mergedOrders,
     ordersCollected: Math.min(ordersCount, session.ordersLimit),
     invoicesQueued: nextInvoices,
-    csvExportUrl,
     updatedAt: Date.now(),
     hasMorePages:
       typeof changes.hasMorePages === 'boolean' ? changes.hasMorePages : session.hasMorePages ?? undefined,
@@ -88,14 +84,12 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
 };
 
 const resetSession = () => {
-  if (session.csvExportUrl) {
-    URL.revokeObjectURL(session.csvExportUrl);
-  }
   session = createEmptySession();
   void persistSession();
 };
 
 const handleStartScrape = (year?: number) => {
+  debugLog('handleStartScrape', year);
   const base = createEmptySession();
   session = {
     ...base,
@@ -111,6 +105,7 @@ const handleStartScrape = (year?: number) => {
 };
 
 const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
+  debugLog('handleProgressUpdate', payload);
   const changes: Partial<ScrapeSessionSnapshot> = {};
 
   if (typeof payload.ordersCollected === 'number') {
@@ -178,23 +173,32 @@ const getActiveTab = async () => {
   return tab;
 };
 
+const getYearFallback = (count = 3) => {
+  const current = new Date().getFullYear();
+  return Array.from({ length: count }, (_, index) => current - index);
+};
+
 const triggerContentScraper = async (payload: ScraperStartPayload) => {
   const activeTab = await getActiveTab();
   if (!activeTab?.id) {
+    debugLog('No active tab detected');
     throw new Error('No active tab detected. Open amazon.in order history and try again.');
   }
 
   if (!isSupportedAmazonUrl(activeTab.url)) {
+    debugLog('Active tab not supported', activeTab.url);
     throw new Error('Please open the Amazon.in order history page before starting a scrape.');
   }
 
   try {
+    debugLog('Sending START to content script', payload);
     await browser.tabs.sendMessage(activeTab.id, {
       scope: SCRAPER_MESSAGE_SCOPE,
       command: 'START',
       payload,
     });
   } catch (error) {
+    debugLog('Failed to reach content script', error);
     throw new Error(
       error instanceof Error
         ? error.message
@@ -204,6 +208,7 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
 };
 
 browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<ScrapeResponse> => {
+  debugLog('runtime message received', message);
   if (!message) {
     return Promise.resolve({ success: false, error: 'Invalid message' });
   }
@@ -211,6 +216,35 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<ScrapeR
   switch (message.type) {
     case 'GET_STATE':
       return Promise.resolve({ success: true, data: { state: session } });
+
+    case 'GET_CONTEXT': {
+      return getActiveTab().then((tab) => ({
+        success: true,
+        data: { state: session, isSupported: isSupportedAmazonUrl(tab?.url ?? null), url: tab?.url },
+      }));
+    }
+
+    case 'GET_AVAILABLE_YEARS': {
+      return getActiveTab()
+        .then(async (tab) => {
+          if (!tab?.id || !isSupportedAmazonUrl(tab.url)) {
+            return { success: true, data: { years: getYearFallback() } };
+          }
+          try {
+            const response = await browser.tabs.sendMessage(tab.id, {
+              scope: SCRAPER_MESSAGE_SCOPE,
+              command: 'GET_YEARS',
+            });
+            if (Array.isArray(response?.years) && response.years.length) {
+              return { success: true, data: { years: response.years as number[] } };
+            }
+          } catch (error) {
+            console.warn('Failed to query years from content script', error);
+          }
+          return { success: true, data: { years: getYearFallback() } };
+        })
+        .catch(() => ({ success: true, data: { years: getYearFallback() } }));
+    }
 
     case 'START_SCRAPE': {
       if (session.phase === 'running') {
