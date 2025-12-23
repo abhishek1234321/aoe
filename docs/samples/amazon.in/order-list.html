@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Amazon Orders List Sample</title>
+</head>
+<body>
+  <div class="your-orders-content-container__content js-yo-main-content">
+    <div class="a-row a-spacing-base">
+      <form class="js-time-filter-form">
+        <label for="time-filter" class="time-filter__label">
+          <span class="num-orders">92 orders</span> placed in
+        </label>
+        <select name="timeFilter" id="time-filter">
+          <option value="last30">last 30 days</option>
+          <option value="months-3" selected>past 3 months</option>
+          <option value="year-2025">2025</option>
+        </select>
+      </form>
+    </div>
+
+    <div class="order-card js-order-card">
+      <div class="a-box a-color-offset-background order-header">
+        <div class="yohtmlc-order-id">
+          <span class="a-color-secondary a-text-caps">Order #</span>
+          <span class="a-color-secondary" dir="ltr">171-4660761-9136348</span>
+        </div>
+      </div>
+      <div class="delivery-box__primary-text">
+        Arriving Friday, 26 December by 9 pm
+      </div>
+      <div class="yohtmlc-item-level-connections">
+        <a class="a-link-normal" href="/gp/your-account/ship-track?orderId=171-4660761-9136348">Track package</a>
+      </div>
+    </div>
+
+    <div class="order-card js-order-card">
+      <div class="a-box a-color-offset-background order-header">
+        <div class="yohtmlc-order-id">
+          <span class="a-color-secondary a-text-caps">Order #</span>
+          <span class="a-color-secondary" dir="ltr">171-7823797-4445130</span>
+        </div>
+      </div>
+      <div class="delivery-box__primary-text">
+        Arriving today
+      </div>
+      <div class="yohtmlc-item-level-connections">
+        <a class="a-link-normal" href="/gp/your-account/ship-track?orderId=171-7823797-4445130">Track package</a>
+        <a class="a-link-normal" href="/spr/returns/cart?orderId=171-7823797-4445130">Return or replace items</a>
+      </div>
+    </div>
+
+    <div class="a-pagination">
+      <li class="a-selected"><a href="/your-orders/orders?startIndex=0">1</a></li>
+      <li class="a-normal"><a href="/your-orders/orders?startIndex=10">2</a></li>
+      <li class="a-last"><a href="/your-orders/orders?startIndex=10">Next</a></li>
+    </div>
+  </div>
+</body>
+</html>
