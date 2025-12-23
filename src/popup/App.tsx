@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { MAX_ORDERS_PER_RUN } from '@shared/constants';
+import { AMAZON_ORDER_HISTORY_URLS, MAX_ORDERS_PER_RUN } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { ordersToCsv } from '@shared/csv';
 import type { ScrapeSessionSnapshot } from '@shared/types';
@@ -155,6 +155,78 @@ const App = () => {
     const current = new Date().getFullYear();
     return [current, current - 1, current - 2];
   }, [availableYears]);
+
+  if (isOnOrderPage === false) {
+    const ordersUrl = AMAZON_ORDER_HISTORY_URLS[0];
+    return (
+      <div style={{ minWidth: '320px', maxWidth: '360px' }}>
+        <header>
+          <h1 style={{ margin: '0 0 8px', fontSize: '18px' }}>Amazon Order Extractor</h1>
+          <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>
+            Jump to Amazon.in order history to begin.
+          </p>
+        </header>
+        <section
+          style={{
+            marginTop: '16px',
+            padding: '16px',
+            borderRadius: '10px',
+            border: '1px solid #e5e7eb',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 64 64"
+              role="img"
+              aria-label="Orders illustration"
+            >
+              <rect x="8" y="10" width="48" height="44" rx="6" fill="#fff" stroke="#c7d2fe" />
+              <rect x="16" y="20" width="32" height="4" rx="2" fill="#4f46e5" />
+              <rect x="16" y="30" width="24" height="4" rx="2" fill="#c7d2fe" />
+              <rect x="16" y="40" width="18" height="4" rx="2" fill="#c7d2fe" />
+              <circle cx="46" cy="42" r="6" fill="#22c55e" />
+              <path d="M44 42.5 45.5 44 48 40" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <div>
+              <p style={{ margin: '0 0 6px', fontWeight: 600, color: '#111827' }}>
+                Head to your Amazon.in order history
+              </p>
+              <p style={{ margin: 0, color: '#4b5563', fontSize: '13px' }}>
+                Open the Orders page, then click “Start scrape” to export your orders to CSV.
+              </p>
+            </div>
+          </div>
+          <a
+            href={ordersUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '12px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              fontWeight: 600,
+              color: '#fff',
+              backgroundColor: '#232f3e',
+              textDecoration: 'none',
+              width: '100%',
+            }}
+          >
+            Open order history
+          </a>
+          <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '12px' }}>
+            If you were already there, refresh the order page and the extension.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minWidth: '320px', maxWidth: '360px' }}>
