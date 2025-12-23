@@ -3,6 +3,15 @@ import { MAX_ORDERS_PER_RUN } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import type { ScrapeSessionSnapshot } from '@shared/types';
 
+const downloadCsv = (url: string) => {
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'amazon-orders.csv';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+};
+
 const useSessionState = () => {
   const [session, setSession] = useState<ScrapeSessionSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,6 +114,7 @@ const App = () => {
   const activeError = error ?? session?.errorMessage ?? null;
   const showReset =
     Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
+  const canDownload = Boolean(session?.csvExportUrl && session.ordersCollected > 0);
 
   return (
     <div style={{ minWidth: '320px', maxWidth: '360px' }}>
@@ -206,6 +216,25 @@ const App = () => {
           <p style={{ color: '#b91c1c', marginTop: '8px' }}>{activeError}</p>
         ) : (
           session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>
+        )}
+        {canDownload && (
+          <button
+            type="button"
+            onClick={() => session?.csvExportUrl && downloadCsv(session.csvExportUrl)}
+            style={{
+              width: '100%',
+              marginTop: '12px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #065f46',
+              backgroundColor: '#d1fae5',
+              color: '#065f46',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Download CSV
+          </button>
         )}
       </section>
     </div>
