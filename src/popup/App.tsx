@@ -26,6 +26,13 @@ const useSessionState = () => {
   return { session, setSession, loading, setLoading, error, setError, refresh };
 };
 
+const formatTimestamp = (timestamp?: number) => {
+  if (!timestamp) {
+    return '—';
+  }
+  return new Date(timestamp).toLocaleString();
+};
+
 const App = () => {
   const { session, setSession, loading, setLoading, error, setError, refresh } = useSessionState();
   const [year, setYear] = useState<string>('');
@@ -34,8 +41,13 @@ const App = () => {
     void refresh();
   }, [refresh]);
 
+  const isRunning = session?.phase === 'running';
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading || isRunning) {
+      return;
+    }
     setLoading(true);
     const parsedYear = year ? Number(year) : undefined;
 
@@ -54,6 +66,23 @@ const App = () => {
     setLoading(false);
   };
 
+  const handleReset = async () => {
+    if (loading) {
+      return;
+    }
+    setLoading(true);
+    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+      type: 'RESET_SCRAPE',
+    });
+    if (!response.success) {
+      setError(response.error ?? 'Failed to reset state');
+    } else if (response.data?.state) {
+      setSession(response.data.state);
+      setError(null);
+    }
+    setLoading(false);
+  };
+
   const statusMessage = useMemo(() => {
     if (!session) {
       return 'Initializing…';
@@ -67,11 +96,18 @@ const App = () => {
     if (session.phase === 'completed') {
       return `Completed — ${session.ordersCollected} orders exported`;
     }
+    if (session.phase === 'error') {
+      return 'Encountered an error';
+    }
     return session.message ?? 'Idle';
   }, [session]);
 
+  const activeError = error ?? session?.errorMessage ?? null;
+  const showReset =
+    Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
+
   return (
-    <div>
+    <div style={{ minWidth: '320px', maxWidth: '360px' }}>
       <header>
         <h1 style={{ margin: '0 0 8px', fontSize: '18px' }}>Amazon Order Extractor</h1>
         <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>
@@ -106,7 +142,7 @@ const App = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isRunning}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -114,13 +150,34 @@ const App = () => {
               border: 'none',
               fontWeight: 600,
               color: '#fff',
-              backgroundColor: loading ? '#94a3b8' : '#232f3e',
+              backgroundColor: loading || isRunning ? '#94a3b8' : '#232f3e',
+              cursor: loading || isRunning ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
+          </button>
+        </form>
+
+        {showReset && (
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={loading}
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5f5',
+              backgroundColor: '#f8fafc',
+              color: '#1e3a8a',
+              fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {loading ? 'Working…' : 'Start scrape'}
+            Reset session
           </button>
-        </form>
+        )}
       </section>
 
       <section style={{ marginTop: '16px', fontSize: '13px', color: '#1f2937' }}>
@@ -132,8 +189,21 @@ const App = () => {
         ) : (
           <p style={{ margin: 0 }}>Filtering year: All</p>
         )}
-        {error ? (
-          <p style={{ color: '#b91c1c', marginTop: '8px' }}>{error}</p>
+        <ul style={{ paddingLeft: '20px', margin: '12px 0' }}>
+          <li>
+            Orders collected:{' '}
+            <strong>
+              {session?.ordersCollected ?? 0}/{session?.ordersLimit ?? MAX_ORDERS_PER_RUN}
+            </strong>
+          </li>
+          <li>
+            Invoices queued: <strong>{session?.invoicesQueued ?? 0}</strong>
+          </li>
+          <li>Started: {formatTimestamp(session?.startedAt)}</li>
+          <li>Completed: {formatTimestamp(session?.completedAt)}</li>
+        </ul>
+        {activeError ? (
+          <p style={{ color: '#b91c1c', marginTop: '8px' }}>{activeError}</p>
         ) : (
           session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>
         )}

@@ -49,11 +49,22 @@ export interface ScrapeSessionSnapshot {
   message?: string;
   yearFilter?: number;
   startedAt?: number;
+  completedAt?: number;
+  errorMessage?: string;
   updatedAt: number;
 }
 
 export interface ScrapeCommandPayload {
   year?: number;
+}
+
+export interface ScrapeProgressPayload {
+  ordersCollected?: number;
+  invoicesQueued?: number;
+  message?: string;
+  phase?: ScrapePhase;
+  completed?: boolean;
+  errorMessage?: string;
 }
 
 export const createEmptySession = (): ScrapeSessionSnapshot => ({
@@ -64,5 +75,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   message: undefined,
   yearFilter: undefined,
   startedAt: undefined,
+  completedAt: undefined,
+  errorMessage: undefined,
   updatedAt: Date.now(),
 });
