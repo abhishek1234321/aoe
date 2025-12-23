@@ -2,12 +2,13 @@ import browser from 'webextension-polyfill';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { AMAZON_ORDER_HISTORY_URLS } from '@shared/constants';
 import { parseOrdersFromDocument } from '@shared/orderParser';
-import type { ScrapeProgressPayload } from '@shared/types';
+import type { ScrapeProgressPayload, ScrapeSessionSnapshot } from '@shared/types';
 import type { ScraperStartPayload } from '@shared/scraperMessages';
 import { isScraperMessage } from '@shared/scraperMessages';
 
 const bannerId = '__aoe-dev-banner';
 let isScraping = false;
+const AUTO_SCRAPE_STORAGE_KEY = '__aoe:auto-scrape';
 
 const allowedPaths = AMAZON_ORDER_HISTORY_URLS.map((url) => {
   try {
@@ -50,11 +51,30 @@ const injectDevBanner = () => {
   document.body.appendChild(banner);
 };
 
-const dispatchProgress = async (payload: ScrapeProgressPayload) => {
-  await sendRuntimeMessage({
+const dispatchProgress = async (payload: ScrapeProgressPayload) =>
+  sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
     type: 'SCRAPE_PROGRESS',
     payload,
   });
+
+const getNextPageLink = (): HTMLAnchorElement | null => {
+  const pagination = document.querySelector('.a-pagination');
+  if (!pagination) {
+    return null;
+  }
+  const lastItem = pagination.querySelector<HTMLLIElement>('li.a-last');
+  if (!lastItem || lastItem.classList.contains('a-disabled')) {
+    return null;
+  }
+  return lastItem.querySelector<HTMLAnchorElement>('a') ?? null;
+};
+
+const saveAutoContinuePayload = (payload: ScraperStartPayload | null) => {
+  if (payload) {
+    sessionStorage.setItem(AUTO_SCRAPE_STORAGE_KEY, JSON.stringify(payload));
+  } else {
+    sessionStorage.removeItem(AUTO_SCRAPE_STORAGE_KEY);
+  }
 };
 
 const executeScrape = async (payload: ScraperStartPayload) => {
@@ -73,16 +93,29 @@ const executeScrape = async (payload: ScraperStartPayload) => {
     }
 
     const orders = parseOrdersFromDocument(document);
-    const limited = payload.limit ? orders.slice(0, payload.limit) : orders;
-    const invoiceCount = limited.filter((order) => Boolean(order.invoiceUrl)).length;
+    const invoiceCount = orders.filter((order) => Boolean(order.invoiceUrl)).length;
+    const nextLink = getNextPageLink();
 
-    await dispatchProgress({
-      orders: limited,
-      ordersCollected: limited.length,
+    const response = await dispatchProgress({
+      orders,
       invoicesQueued: invoiceCount,
-      message: `Collected ${limited.length} orders from current page.`,
-      completed: true,
+      hasMorePages: Boolean(nextLink),
+      message: `Collected ${orders.length} orders from current page.`,
+      completed: !nextLink,
     });
+
+    const nextState = response.success ? response.data?.state : undefined;
+    const shouldContinue =
+      Boolean(nextLink) &&
+      nextState?.phase === 'running' &&
+      (nextState?.ordersCollected ?? 0) < (nextState?.ordersLimit ?? payload.limit ?? Infinity);
+
+    if (shouldContinue && nextLink) {
+      saveAutoContinuePayload(payload);
+      nextLink.click();
+    } else {
+      saveAutoContinuePayload(null);
+    }
   } catch (error) {
     await dispatchProgress({
       phase: 'error',
@@ -106,3 +139,14 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 });
 
 injectDevBanner();
+
+const autoPayloadRaw = sessionStorage.getItem(AUTO_SCRAPE_STORAGE_KEY);
+if (autoPayloadRaw) {
+  try {
+    const parsed = JSON.parse(autoPayloadRaw) as ScraperStartPayload;
+    saveAutoContinuePayload(parsed);
+    void executeScrape(parsed);
+  } catch {
+    saveAutoContinuePayload(null);
+  }
+}
