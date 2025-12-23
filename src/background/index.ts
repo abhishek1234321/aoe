@@ -2,9 +2,12 @@ import browser from 'webextension-polyfill';
 import type { RuntimeMessage, ScrapeResponse } from '../shared/messaging';
 import {
   createEmptySession,
+  OrderSummary,
   ScrapeProgressPayload,
   ScrapeSessionSnapshot,
 } from '../shared/types';
+import { AMAZON_ORDER_HISTORY_URLS, SCRAPER_MESSAGE_SCOPE } from '../shared/constants';
+import type { ScraperStartPayload } from '../shared/scraperMessages';
 
 let session: ScrapeSessionSnapshot = createEmptySession();
 
@@ -38,18 +41,32 @@ browser.runtime.onInstalled.addListener(() => {
 
 void hydrateSession();
 
+const mergeOrders = (existing: OrderSummary[], incoming: OrderSummary[]): OrderSummary[] => {
+  if (!incoming.length) {
+    return existing;
+  }
+  const map = new Map(existing.map((order) => [order.orderId, order]));
+  incoming.forEach((order) => {
+    map.set(order.orderId, order);
+  });
+  return Array.from(map.values());
+};
+
 const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
-  const nextOrders =
+  const mergedOrders =
+    changes.orders && changes.orders.length ? mergeOrders(session.orders, changes.orders) : session.orders;
+  const ordersCount =
     typeof changes.ordersCollected === 'number'
       ? Math.min(changes.ordersCollected, session.ordersLimit)
-      : session.ordersCollected;
+      : mergedOrders.length;
   const nextInvoices =
     typeof changes.invoicesQueued === 'number' ? Math.max(changes.invoicesQueued, 0) : session.invoicesQueued;
 
   session = {
     ...session,
     ...changes,
-    ordersCollected: nextOrders,
+    orders: mergedOrders,
+    ordersCollected: Math.min(ordersCount, session.ordersLimit),
     invoicesQueued: nextInvoices,
     updatedAt: Date.now(),
   };
@@ -69,6 +86,7 @@ const handleStartScrape = (year?: number) => {
     yearFilter: year,
     message: year ? `Scraping orders from ${year}` : 'Scraping all available orders',
     startedAt: Date.now(),
+    orders: [],
     updatedAt: Date.now(),
   };
   void persistSession();
@@ -101,6 +119,9 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
     changes.errorMessage = payload.errorMessage ?? payload.message ?? 'Unknown scraping error';
     changes.message = payload.message ?? 'Encountered an error while scraping';
   }
+  if (payload.orders && payload.orders.length) {
+    changes.orders = payload.orders;
+  }
   if (changes.ordersCollected && changes.ordersCollected >= session.ordersLimit) {
     changes.phase = 'completed';
     changes.completedAt = Date.now();
@@ -110,6 +131,56 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   }
 
   updateSession(changes);
+};
+
+const orderHistoryPaths = AMAZON_ORDER_HISTORY_URLS.map((url) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+});
+
+const isSupportedAmazonUrl = (url?: string | null) => {
+  if (!url) {
+    return false;
+  }
+  try {
+    const parsed = new URL(url);
+    return orderHistoryPaths.some((path) => parsed.pathname.startsWith(path));
+  } catch {
+    return false;
+  }
+};
+
+const getActiveTab = async () => {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  return tab;
+};
+
+const triggerContentScraper = async (payload: ScraperStartPayload) => {
+  const activeTab = await getActiveTab();
+  if (!activeTab?.id) {
+    throw new Error('No active tab detected. Open amazon.in order history and try again.');
+  }
+
+  if (!isSupportedAmazonUrl(activeTab.url)) {
+    throw new Error('Please open the Amazon.in order history page before starting a scrape.');
+  }
+
+  try {
+    await browser.tabs.sendMessage(activeTab.id, {
+      scope: SCRAPER_MESSAGE_SCOPE,
+      command: 'START',
+      payload,
+    });
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : 'Unable to communicate with the content script. Please refresh the page and try again.',
+    );
+  }
 };
 
 browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<ScrapeResponse> => {
@@ -126,8 +197,22 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<ScrapeR
         return Promise.resolve({ success: false, error: 'Scraper is already running' });
       }
       const startState = handleStartScrape(message.payload.year);
-      // TODO: trigger content-script orchestration here.
-      return Promise.resolve({ success: true, data: { state: startState } });
+      const scrapePayload: ScraperStartPayload = {
+        year: message.payload.year,
+        limit: session.ordersLimit,
+      };
+      return triggerContentScraper(scrapePayload)
+        .then(() => ({ success: true, data: { state: startState } }))
+        .catch((error) => {
+          const messageText =
+            error instanceof Error ? error.message : 'Unable to reach the Amazon order page content script.';
+          updateSession({
+            phase: 'error',
+            message: messageText,
+            errorMessage: messageText,
+          });
+          return { success: false, error: messageText };
+        });
     }
 
     case 'SCRAPE_PROGRESS': {

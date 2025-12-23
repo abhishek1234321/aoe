@@ -46,6 +46,7 @@ export interface ScrapeSessionSnapshot {
   ordersCollected: number;
   invoicesQueued: number;
   ordersLimit: number;
+  orders: OrderSummary[];
   message?: string;
   yearFilter?: number;
   startedAt?: number;
@@ -65,6 +66,8 @@ export interface ScrapeProgressPayload {
   phase?: ScrapePhase;
   completed?: boolean;
   errorMessage?: string;
+  orders?: OrderSummary[];
+  hasMorePages?: boolean;
 }
 
 export const createEmptySession = (): ScrapeSessionSnapshot => ({
@@ -72,6 +75,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   ordersCollected: 0,
   invoicesQueued: 0,
   ordersLimit: MAX_ORDERS_PER_RUN,
+  orders: [],
   message: undefined,
   yearFilter: undefined,
   startedAt: undefined,
