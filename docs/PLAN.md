@@ -58,6 +58,13 @@ Version policy: start with the newest stable releases listed above; when tooling
 - Conventional Commits (`feat:`, `fix:`, `docs:`) for clarity and automated changelog generation later.
 - Continuous push to GitHub: run lint/tests locally before PR; CI (to be added later) will re-run checks. Releases are tagged (e.g., `v0.1.0`) after verified builds from `main`.
 
+## Working Notes (current state)
+- Debuggable builds: `npm run dev` sets sourcemaps + no minify; reload the unpacked extension to pick up changes. Prod build stays minified.
+- Logging: content/background log with `[AOE:content]` / `[AOE:bg]`; `DEBUG_LOGGING` flag in constants to toggle verbose logs.
+- CSV export: generated in popup on download (no Blob storage in service worker).
+- UI: zero-state card when not on Amazon.in order history; year dropdown is populated from the page when available.
+- Build hygiene: `npm run clean` clears `dist/`.
+
 ## Implementation Steps
 1. Scaffold project (Vite + TS), add manifest template(s), linting, npm scripts.
 2. Build popup UI shell and messaging plumbing (popup ⇄ background ⇄ content).

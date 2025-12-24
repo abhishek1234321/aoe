@@ -11,6 +11,7 @@
     "dev:main": "VITE_MINIFY=false VITE_SOURCEMAP=true vite build --mode main --watch",
     "dev:content": "VITE_MINIFY=false VITE_SOURCEMAP=true vite build --mode content --watch",
     "dev:all": "concurrently \"npm:dev:main\" \"npm:dev:content\"",
+    "clean": "rm -rf dist",
     "build": "npm run build:main && npm run build:content",
     "build:main": "vite build --mode main",
     "build:content": "vite build --mode content",

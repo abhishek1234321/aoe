@@ -14,7 +14,8 @@ Work-in-progress browser extension that scrapes amazon.in order history to expor
 | Command            | Description                               |
 | ------------------ | ----------------------------------------- |
 | `npm run dev`      | Builds extension assets with watch mode   |
-| `npm run build`    | Production build                          |
+| `npm run build`    | Production build (minified, no sourcemap)  |
+| `npm run clean`    | Remove `dist/`                             |
 | `npm run lint`     | ESLint across `src`                       |
 | `npm run test`     | Vitest (unit/integration)                 |
 | `npm run typecheck`| TypeScript `--noEmit` checks              |
