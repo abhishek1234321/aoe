@@ -11,12 +11,12 @@
 -- CSV is generated client-side on download (no Blob storage in SW). Debug logging via `[AOE:content]` / `[AOE:bg]`.
 
 ## Next Up
-1. Improve scraping UX (avoid user disruption while paging; move pagination to a background/hidden tab).
-2. Harden time-filter handling and fallbacks (surface errors, handle missing dropdowns gracefully).
-3. Invoice download manager (queue, throttle, retries) once CSV scrape is solid.
-4. Expand parser/CSV tests with markup variants.
-5. Polish popup UX (status/error clarity, disable states).
-7. Store prep: finalize listing copy/assets, keep debug off in prod, and ensure invoice downloads stay opt-in.
+1. Improve scraping UX (avoid user disruption while paging; move pagination to a background/hidden tab). ✅
+2. Harden time-filter handling and fallbacks (surface errors, handle missing dropdowns gracefully). ✅
+3. Invoice download manager (queue, throttle, retries) once CSV scrape is solid. ✅
+4. Expand parser/CSV tests with markup variants. ✅
+5. Polish popup UX (status/error clarity, disable states). ✅
+7. Store prep: finalize listing copy/assets, keep debug off in prod, and ensure invoice downloads stay opt-in. ⏳
 
 ## Risks / Watch
 - Pagination flow can disrupt the user (same-tab navigation).
