@@ -306,6 +306,7 @@ const App = () => {
   const showCancelScrape = session?.phase === 'running';
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
+  const isEmptyResult = session?.phase === 'completed' && (session?.orders?.length ?? 0) === 0;
   const summary = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
     session?.orders,
     session?.timeFilterValue,
@@ -570,6 +571,29 @@ const App = () => {
                   <div className="highlight-value">{summary.repeatItems}</div>
                 </div>
               </div>
+            </div>
+          </section>
+        ) : isEmptyResult ? (
+          <section className="status-block">
+            <div className="hero-card">
+              <div className="hero-body">
+                <img src={heroOrders} alt="No orders" className="illustration" />
+                <div>
+                  <p className="hero-title">No orders found</p>
+                  <p className="hero-copy">
+                    We couldn&apos;t find any orders for this range. Try a different timeframe or refresh the Orders page.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={loading}
+                style={{ marginTop: '12px' }}
+                onClick={() => setSelectedFilter('')}
+              >
+                Choose another timeframe
+              </button>
             </div>
           </section>
         ) : (

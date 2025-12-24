@@ -299,7 +299,7 @@ const resolveAmazonUrl = (href: string) => {
   }
 };
 
-const buildInvoiceQueue = () => {
+const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string }> => {
   const seen = new Set<string>();
   const tasks = session.orders
     .filter((order) => order.invoiceUrl)
