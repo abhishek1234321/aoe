@@ -2,6 +2,10 @@ import { SCRAPER_MESSAGE_SCOPE } from './constants';
 
 export interface ScraperStartPayload {
   year?: number;
+  timeFilterValue?: string;
+  timeFilterLabel?: string;
+  downloadInvoices?: boolean;
+  reuseExistingOrders?: boolean;
   limit: number;
 }
 

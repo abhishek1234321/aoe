@@ -14,7 +14,7 @@ export type RuntimeMessage =
       type: 'GET_CONTEXT';
     }
   | {
-      type: 'GET_AVAILABLE_YEARS';
+      type: 'GET_AVAILABLE_FILTERS';
     }
   | {
       type: 'GET_STATE';
@@ -25,6 +25,12 @@ export type RuntimeMessage =
     }
   | {
       type: 'RESET_SCRAPE';
+    }
+  | {
+      type: 'CANCEL_INVOICE_DOWNLOADS';
+    }
+  | {
+      type: 'CANCEL_SCRAPE';
     };
 
 export interface RuntimeResponse<T = unknown> {

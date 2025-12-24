@@ -148,8 +148,10 @@ const extractItems = (box: Element): OrderItem[] => {
 
 const buildItemFromContainer = (element: Element): OrderItem | null => {
   const titleAnchor = element.querySelector<HTMLAnchorElement>(ITEM_TITLE_SELECTOR);
-  const title = titleAnchor?.textContent?.trim() || null;
-  const imageUrl = element.querySelector<HTMLImageElement>(ITEM_IMAGE_SELECTOR)?.getAttribute('src') || undefined;
+  const imageEl = element.querySelector<HTMLImageElement>(ITEM_IMAGE_SELECTOR);
+  const imageAlt = imageEl?.getAttribute('alt')?.trim() || null;
+  const title = titleAnchor?.textContent?.trim() || imageAlt || null;
+  const imageUrl = imageEl?.getAttribute('src') || undefined;
   const url = titleAnchor?.getAttribute('href') || undefined;
   const asin = extractAsinFromUrl(url);
 

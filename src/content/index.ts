@@ -5,6 +5,7 @@ import { parseOrdersFromDocument } from '@shared/orderParser';
 import type { ScrapeProgressPayload, ScrapeSessionSnapshot } from '@shared/types';
 import type { ScraperStartPayload } from '@shared/scraperMessages';
 import { isScraperMessage } from '@shared/scraperMessages';
+import { applyTimeFilter, extractTimeFilters } from '@shared/timeFilters';
 
 const bannerId = '__aoe-dev-banner';
 let isScraping = false;
@@ -83,6 +84,54 @@ const saveAutoContinuePayload = (payload: ScraperStartPayload | null) => {
   }
 };
 
+const waitForYearSelect = (timeoutMs = 8000, intervalMs = 150): Promise<HTMLSelectElement | null> =>
+  new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => {
+      const select = document.querySelector<HTMLSelectElement>('#time-filter');
+      if (select) {
+        resolve(select);
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        resolve(null);
+        return;
+      }
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+
+const ensureTimeFilter = async (payload: ScraperStartPayload) => {
+  const { year, timeFilterValue } = payload;
+  await waitForYearSelect();
+  const result = applyTimeFilter(document, timeFilterValue, year);
+  if (result.changed) {
+    debugLog('Applying time filter and waiting for reload', { timeFilterValue, year });
+    saveAutoContinuePayload(payload);
+    const label = payload.timeFilterLabel ?? (year ? String(year) : timeFilterValue);
+    await dispatchProgress({
+      phase: 'running',
+      message: `Switching to ${label ?? 'selected range'}…`,
+      hasMorePages: true,
+    });
+  }
+  return result.changed;
+};
+
+const extractFiltersWithRetry = async (timeoutMs = 8000, intervalMs = 150) => {
+  const start = Date.now();
+  let filters: ReturnType<typeof extractTimeFilters> = [];
+  while (Date.now() - start < timeoutMs) {
+    filters = extractTimeFilters(document);
+    if (filters.length) {
+      return filters;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return filters;
+};
+
 const executeScrape = async (payload: ScraperStartPayload) => {
   if (isScraping) {
     debugLog('Scrape already running, skipping duplicate');
@@ -97,6 +146,12 @@ const executeScrape = async (payload: ScraperStartPayload) => {
         phase: 'error',
         errorMessage: 'This page does not look like Amazon order history.',
       });
+      return;
+    }
+
+    const waitingForTimeFilter = await ensureTimeFilter(payload);
+    if (waitingForTimeFilter) {
+      debugLog('Time filter applied; waiting for page reload before scraping');
       return;
     }
 
@@ -139,25 +194,6 @@ const executeScrape = async (payload: ScraperStartPayload) => {
   }
 };
 
-const extractAvailableYears = (): number[] => {
-  const select = document.querySelector<HTMLSelectElement>('#time-filter');
-  if (!select) {
-    return [];
-  }
-  const years = new Set<number>();
-  select.querySelectorAll('option').forEach((option) => {
-    const value = option.value ?? option.getAttribute('value') ?? '';
-    const match = value.match(/year-(\d{4})/i);
-    if (match) {
-      const parsed = Number(match[1]);
-      if (!Number.isNaN(parsed)) {
-        years.add(parsed);
-      }
-    }
-  });
-  return Array.from(years).sort((a, b) => b - a);
-};
-
 browser.runtime.onMessage.addListener((message: unknown) => {
   if (isScraperMessage(message)) {
     if (message.command === 'START') {
@@ -171,11 +207,18 @@ browser.runtime.onMessage.addListener((message: unknown) => {
     typeof message === 'object' &&
     message !== null &&
     'command' in message &&
-    (message as { command: string }).command === 'GET_YEARS'
+    (message as { command: string }).command === 'GET_FILTERS'
   ) {
-    const years = extractAvailableYears();
-    debugLog('Extracted available years', years);
-    return Promise.resolve({ years });
+    return waitForYearSelect()
+      .then(() => extractFiltersWithRetry())
+      .then((filters) => {
+        debugLog('Extracted available filters', filters);
+        return { filters };
+      })
+      .catch((error) => {
+        debugLog('Failed to extract filters', error);
+        return { filters: [] };
+      });
   }
 
   return undefined;

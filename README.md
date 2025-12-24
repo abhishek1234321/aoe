@@ -2,6 +2,10 @@
 
 Work-in-progress browser extension that scrapes amazon.in order history to export CSVs and download invoices. See `docs/PLAN.md` for architecture/roadmap.
 
+## Privacy
+- All scraping, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
+- If a future feature needs to call external services, it must be explicitly consented to by the user before any data leaves the machine.
+
 ## Getting Started
 
 1. Install Node.js 22+ and npm 10+.

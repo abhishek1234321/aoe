@@ -43,13 +43,20 @@ export interface OrderSummary {
 
 export interface ScrapeSessionSnapshot {
   phase: ScrapePhase;
+  runId?: string;
+  downloadInvoicesRequested?: boolean;
   ordersCollected: number;
   invoicesQueued: number;
+  invoicesDownloaded: number;
+  invoiceErrors: number;
+  invoiceDownloadsStarted?: boolean;
   ordersLimit: number;
   orders: OrderSummary[];
   hasMorePages?: boolean;
   message?: string;
   yearFilter?: number;
+  timeFilterValue?: string;
+  timeFilterLabel?: string;
   startedAt?: number;
   completedAt?: number;
   errorMessage?: string;
@@ -58,11 +65,17 @@ export interface ScrapeSessionSnapshot {
 
 export interface ScrapeCommandPayload {
   year?: number;
+  timeFilterValue?: string;
+  timeFilterLabel?: string;
+  downloadInvoices?: boolean;
+  reuseExistingOrders?: boolean;
 }
 
 export interface ScrapeProgressPayload {
   ordersCollected?: number;
   invoicesQueued?: number;
+  invoicesDownloaded?: number;
+  invoiceErrors?: number;
   message?: string;
   phase?: ScrapePhase;
   completed?: boolean;
@@ -75,11 +88,17 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   phase: 'idle',
   ordersCollected: 0,
   invoicesQueued: 0,
+  invoicesDownloaded: 0,
+  invoiceErrors: 0,
+  invoiceDownloadsStarted: false,
+  downloadInvoicesRequested: false,
   ordersLimit: MAX_ORDERS_PER_RUN,
   orders: [],
   hasMorePages: undefined,
   message: undefined,
   yearFilter: undefined,
+  timeFilterValue: undefined,
+  timeFilterLabel: undefined,
   startedAt: undefined,
   completedAt: undefined,
   errorMessage: undefined,

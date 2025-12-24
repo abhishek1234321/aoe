@@ -15,6 +15,7 @@ const sharedConfig = {
 
 export default defineConfig(({ mode }) => {
   const isContentBuild = mode === 'content';
+  const isWatch = process.argv.includes('--watch');
   const shouldMinify = process.env.VITE_MINIFY !== 'false';
   const shouldSourcemap = process.env.VITE_SOURCEMAP === 'true';
 
@@ -44,7 +45,9 @@ export default defineConfig(({ mode }) => {
     ...sharedConfig,
     build: {
       outDir: 'dist',
-      emptyOutDir: true,
+      // Keep dist intact during `--watch` so the content build output (content.js)
+      // isn't wiped while both watch tasks run concurrently.
+      emptyOutDir: !isWatch,
       sourcemap: shouldSourcemap,
       rollupOptions: {
         input: {
