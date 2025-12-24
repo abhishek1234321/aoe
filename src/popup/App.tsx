@@ -157,6 +157,7 @@ const App = () => {
   const [downloadInvoices, setDownloadInvoices] = useState<boolean>(false);
   const [showHighlights, setShowHighlights] = useState<boolean>(false);
   const [view, setView] = useState<'main' | 'highlights'>('main');
+  const [showFilterForm, setShowFilterForm] = useState<boolean>(true);
   const [version, setVersion] = useState<string>('');
 
   useEffect(() => {
@@ -307,6 +308,10 @@ const App = () => {
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
   const isEmptyResult = session?.phase === 'completed' && (session?.orders?.length ?? 0) === 0;
+
+  useEffect(() => {
+    setShowFilterForm(!isEmptyResult);
+  }, [isEmptyResult]);
   const summary = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
     session?.orders,
     session?.timeFilterValue,
@@ -398,49 +403,51 @@ const App = () => {
 
       <div className="content-scroll">
         <section style={{ marginTop: '16px' }}>
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="timeFilter" className="field-label">
-              Choose a time filter
-            </label>
-            <select
-              id="timeFilter"
-              value={selectedFilter}
-              onChange={(event) => setSelectedFilter(event.target.value)}
-              disabled={isBlockedPage}
-              className="select-input"
-              required
-            >
-              <option value="">Select a range</option>
-              {filterOptions.map((option) => {
-                if (!option.value) {
-                  return null;
-                }
-                return (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                );
-              })}
-            </select>
-
-            <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="checkbox"
-                checked={downloadInvoices}
-                onChange={(event) => setDownloadInvoices(event.target.checked)}
+          {showFilterForm && (
+            <form onSubmit={handleSubmit}>
+              <label htmlFor="timeFilter" className="field-label">
+                Choose a time filter
+              </label>
+              <select
+                id="timeFilter"
+                value={selectedFilter}
+                onChange={(event) => setSelectedFilter(event.target.value)}
                 disabled={isBlockedPage}
-              />
-              <span>Download invoices after scrape</span>
-            </label>
+                className="select-input"
+                required
+              >
+                <option value="">Select a range</option>
+                {filterOptions.map((option) => {
+                  if (!option.value) {
+                    return null;
+                  }
+                  return (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  );
+                })}
+              </select>
 
-            <button
-              type="submit"
-              disabled={!canStart || !selectedFilter}
-              className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
-            >
-              {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
-            </button>
-          </form>
+              <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={downloadInvoices}
+                  onChange={(event) => setDownloadInvoices(event.target.checked)}
+                  disabled={isBlockedPage}
+                />
+                <span>Download invoices after scrape</span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={!canStart || !selectedFilter}
+                className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
+              >
+                {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
+              </button>
+            </form>
+          )}
 
           {canShowHighlights && view === 'main' ? (
             <button
@@ -573,7 +580,7 @@ const App = () => {
               </div>
             </div>
           </section>
-        ) : isEmptyResult ? (
+        ) : isEmptyResult && !showFilterForm ? (
           <section className="status-block">
             <div className="hero-card">
               <div className="hero-body">
@@ -590,7 +597,10 @@ const App = () => {
                 className="primary-button"
                 disabled={loading}
                 style={{ marginTop: '12px' }}
-                onClick={() => setSelectedFilter('')}
+                onClick={() => {
+                  setSelectedFilter('');
+                  setShowFilterForm(true);
+                }}
               >
                 Choose another timeframe
               </button>
