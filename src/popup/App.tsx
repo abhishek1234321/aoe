@@ -1,14 +1,15 @@
 import browser from 'webextension-polyfill';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { format as formatDate, getISOWeek } from 'date-fns';
 import { AMAZON_ORDER_HISTORY_URLS, MAX_ORDERS_PER_RUN } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { ordersToCsv } from '@shared/csv';
-import type { OrderSummary, ScrapeSessionSnapshot } from '@shared/types';
+import type { ScrapeSessionSnapshot } from '@shared/types';
 import type { TimeFilterOption } from '@shared/timeFilters';
-import { formatCurrency } from '@shared/format';
+import { computeHighlights } from '@shared/highlights';
 import heroOrders from '../assets/hero-orders.svg';
 import './App.css';
+
+const FEEDBACK_URL = 'https://github.com/abhishek1234321/aoe/issues/new';
 
 const downloadCsv = (csvText: string, runId?: string) => {
   const anchor = document.createElement('a');
@@ -54,101 +55,6 @@ const formatTimestamp = (timestamp?: number) => {
   }
 };
 
-type Highlights = {
-  totalOrders: number;
-  nonCancelledOrders: number;
-  totalSpend: number;
-  avgOrderValue: number;
-  currency: string;
-  formattedSpend: string;
-  formattedAvg: string;
-  busiestDay?: string;
-  topPeriod?: { label: string; count: number };
-  topItems: Array<{ label: string; count: number }>;
-  uniqueItems: number;
-  repeatItems: number;
-};
-
-const computeHighlights = (orders: OrderSummary[], timeFilterValue?: string): Highlights => {
-  const isNonCancelled = (status?: string) => {
-    const normalized = (status ?? '').toLowerCase();
-    return !normalized.includes('cancel') && !normalized.includes('return');
-  };
-  const safeOrders = orders.filter((order) => isNonCancelled(order.status));
-  const totalSpend = safeOrders.reduce((sum, order) => {
-    const amt = order.total.amount ?? 0;
-    return sum + (Number.isFinite(amt) ? amt : 0);
-  }, 0);
-  const currency = safeOrders.find((o) => o.total.currencySymbol)?.total.currencySymbol ?? '';
-  const avgOrderValue = safeOrders.length ? totalSpend / safeOrders.length : 0;
-
-  const getDate = (order: OrderSummary) => {
-    if (order.orderDateISO) return new Date(order.orderDateISO);
-    if (order.orderDateText) return new Date(order.orderDateText);
-    return null;
-  };
-
-  const dayCounts = new Map<string, number>();
-  const periodCounts = new Map<string, number>();
-  const periodLabels = new Map<string, string>();
-  const useMonthly = timeFilterValue?.startsWith('year-');
-  safeOrders.forEach((order) => {
-    const date = getDate(order);
-    if (!date || Number.isNaN(date.getTime())) return;
-    const dayLabel = formatDate(date, 'EEE');
-    dayCounts.set(dayLabel, (dayCounts.get(dayLabel) ?? 0) + 1);
-    if (useMonthly) {
-      const key = formatDate(date, 'yyyy-MM');
-      periodCounts.set(key, (periodCounts.get(key) ?? 0) + 1);
-      periodLabels.set(key, formatDate(date, 'MMM yyyy'));
-    } else {
-      const week = getISOWeek(date);
-      const key = `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
-      periodCounts.set(key, (periodCounts.get(key) ?? 0) + 1);
-      periodLabels.set(key, `Week ${week}, ${date.getFullYear()}`);
-    }
-  });
-
-  const busiestDay = Array.from(dayCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
-  const topPeriodEntry = Array.from(periodCounts.entries()).sort((a, b) => b[1] - a[1])[0];
-  const topPeriod = topPeriodEntry
-    ? { label: periodLabels.get(topPeriodEntry[0]) ?? topPeriodEntry[0], count: topPeriodEntry[1] }
-    : undefined;
-
-  const itemCounts = new Map<string, { label: string; count: number }>();
-  orders.forEach((order) => {
-    order.shipments.forEach((shipment) => {
-      shipment.items.forEach((item) => {
-        const key = item.asin ?? item.title ?? '';
-        if (!key) return;
-        const current = itemCounts.get(key) ?? { label: item.title || key, count: 0 };
-        current.count += 1;
-        itemCounts.set(key, current);
-      });
-    });
-  });
-  const topItems = Array.from(itemCounts.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
-  const uniqueItems = Array.from(itemCounts.values()).filter((i) => i.count === 1).length;
-  const repeatItems = Array.from(itemCounts.values()).filter((i) => i.count > 1).length;
-
-  return {
-    totalOrders: orders.length,
-    nonCancelledOrders: safeOrders.length,
-    totalSpend,
-    avgOrderValue,
-    currency,
-    formattedSpend: formatCurrency(totalSpend, currency),
-    formattedAvg: formatCurrency(avgOrderValue, currency),
-    busiestDay,
-    topPeriod,
-    topItems,
-    uniqueItems,
-    repeatItems,
-  };
-};
-
 const App = () => {
   const { session, setSession, loading, setLoading, error, setError, refresh } = useSessionState();
   const [selectedFilter, setSelectedFilter] = useState<string>('');
@@ -159,6 +65,7 @@ const App = () => {
   const [view, setView] = useState<'main' | 'highlights'>('main');
   const [showFilterForm, setShowFilterForm] = useState<boolean>(true);
   const [version, setVersion] = useState<string>('');
+  const [notifyOnCompletion, setNotifyOnCompletion] = useState<boolean>(false);
 
   useEffect(() => {
     void refresh();
@@ -218,6 +125,15 @@ const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    void browser.storage.local.get('aoe:settings').then((stored) => {
+      const next = (stored['aoe:settings'] as { notifyOnCompletion?: boolean } | undefined)?.notifyOnCompletion;
+      if (typeof next === 'boolean') {
+        setNotifyOnCompletion(next);
+      }
+    });
+  }, []);
+
   const isRunning = session?.phase === 'running';
   const isBlockedPage = isOnOrderPage === false;
 
@@ -231,6 +147,14 @@ const App = () => {
     const parsedYear =
       chosen?.year ?? (selectedFilter.startsWith('year-') ? Number(selectedFilter.replace('year-', '')) : undefined);
     const downloadInvoicesFlag = Boolean(downloadInvoices);
+    if (downloadInvoicesFlag) {
+      const granted = await requestPermission('downloads');
+      if (!granted) {
+        setError('Enable downloads permission to save invoices.');
+        setLoading(false);
+        return;
+      }
+    }
 
     const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
       type: 'START_SCRAPE',
@@ -308,10 +232,25 @@ const App = () => {
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
   const isEmptyResult = session?.phase === 'completed' && (session?.orders?.length ?? 0) === 0;
+  const canRetryScrape = Boolean(
+    session?.phase === 'error' &&
+      session?.errorMessage &&
+      (session.errorMessage.includes('Scrape tab unavailable') ||
+        session.errorMessage.includes('Timed out waiting for scrape tab')),
+  );
 
   useEffect(() => {
     setShowFilterForm(!isEmptyResult);
   }, [isEmptyResult]);
+
+  const requestPermission = async (permission: 'downloads' | 'notifications') => {
+    try {
+      const granted = await browser.permissions.request({ permissions: [permission] });
+      return granted;
+    } catch (error) {
+      return false;
+    }
+  };
   const summary = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
     session?.orders,
     session?.timeFilterValue,
@@ -358,10 +297,15 @@ const App = () => {
           </a>
           <p className="hero-hint">If you were already there, refresh the order page and the extension.</p>
         </section>
-      <footer className="privacy-note sticky-footer">
-        <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
-        {version ? <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>Version {version}</div> : null}
-      </footer>
+        <footer className="privacy-note sticky-footer">
+          <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
+          <div className="footer-links">
+            {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
+            <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
+              Send feedback
+            </a>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -433,20 +377,55 @@ const App = () => {
                 <input
                   type="checkbox"
                   checked={downloadInvoices}
-                  onChange={(event) => setDownloadInvoices(event.target.checked)}
+                  onChange={async (event) => {
+                    const next = event.target.checked;
+                    if (next) {
+                      const granted = await requestPermission('downloads');
+                      if (!granted) {
+                        setError('Enable downloads permission to save invoices.');
+                        return;
+                      }
+                    }
+                    setDownloadInvoices(next);
+                  }}
                   disabled={isBlockedPage}
                 />
                 <span>Download invoices after scrape</span>
               </label>
 
-              <button
-                type="submit"
-                disabled={!canStart || !selectedFilter}
-                className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
-              >
-                {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
-              </button>
-            </form>
+              <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={notifyOnCompletion}
+                  onChange={async (event) => {
+                    const next = event.target.checked;
+                    if (next) {
+                      const granted = await requestPermission('notifications');
+                      if (!granted) {
+                        setError('Enable notifications permission to get completion alerts.');
+                        return;
+                      }
+                    }
+                    setNotifyOnCompletion(next);
+                    await browser.storage.local.set({ 'aoe:settings': { notifyOnCompletion: next } });
+                    await sendRuntimeMessage({
+                      type: 'SET_SETTINGS',
+                      payload: { notifyOnCompletion: next },
+                    });
+                  }}
+                  disabled={isBlockedPage}
+                />
+                <span>Notify when scrape completes</span>
+              </label>
+
+            <button
+              type="submit"
+              disabled={!canStart || !selectedFilter}
+              className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
+            >
+              {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
+            </button>
+          </form>
           )}
 
           {canShowHighlights && view === 'main' ? (
@@ -468,6 +447,12 @@ const App = () => {
               type="button"
               onClick={async () => {
                 setLoading(true);
+                const granted = await requestPermission('downloads');
+                if (!granted) {
+                  setError('Enable downloads permission to save invoices.');
+                  setLoading(false);
+                  return;
+                }
                 const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
                   type: 'START_SCRAPE',
                   payload: {
@@ -655,6 +640,41 @@ const App = () => {
             <dd>{formatTimestamp(session?.completedAt)}</dd>
           </dl>
           {activeError ? <p className="error-text">{activeError}</p> : session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>}
+          {canRetryScrape && (
+            <div className="retry-hint">
+              <strong>Scrape tab failed.</strong> Make sure the Amazon Orders page is open and you are signed in,
+              then retry.
+            </div>
+          )}
+          {canRetryScrape && (
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ marginTop: '8px' }}
+              onClick={async () => {
+                setLoading(true);
+                const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+                  type: 'START_SCRAPE',
+                  payload: {
+                    year: session?.yearFilter,
+                    timeFilterValue: session?.timeFilterValue,
+                    timeFilterLabel: session?.timeFilterLabel,
+                    downloadInvoices: session?.downloadInvoicesRequested,
+                  },
+                });
+                if (!response.success) {
+                  setError(response.error ?? 'Failed to retry scrape');
+                } else if (response.data?.state) {
+                  setSession(response.data.state);
+                  setError(null);
+                }
+                setLoading(false);
+              }}
+              disabled={loading}
+            >
+              Retry scrape
+            </button>
+          )}
           {canDownload && (
             <button
               type="button"
@@ -711,7 +731,13 @@ const App = () => {
     </div>
 
     <footer className="privacy-note sticky-footer">
-        All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.
+      <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
+      <div className="footer-links">
+        {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
+        <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
+          Send feedback
+        </a>
+      </div>
       </footer>
     </div>
   );

@@ -218,6 +218,23 @@
   border-top: 1px solid #e5e7eb;
 }
 
+.footer-links {
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  font-size: 11px;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
+
 .highlight-card {
   margin-top: 12px;
   padding: 12px;
@@ -242,6 +259,16 @@
   font-size: 18px;
   font-weight: 700;
   color: #111827;
+}
+
+.retry-hint {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
 }
 
 .progress-container {

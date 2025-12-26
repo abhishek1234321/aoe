@@ -27,6 +27,6 @@ describe('invoice link parsing', () => {
   it('falls back to first link when no invoice is present', () => {
     const links = parseInvoiceLinks('<a href="/foo">Foo</a><a href="/bar">Bar</a>');
     const selected = selectInvoiceLink(links);
-    expect(selected?.href).toBe('/foo');
+    expect(selected).toBeNull();
   });
 });

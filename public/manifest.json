@@ -18,7 +18,8 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "permissions": ["activeTab", "storage"],
+  "optional_permissions": ["downloads", "notifications"],
   "host_permissions": ["https://www.amazon.in/*"],
   "content_scripts": [
     {

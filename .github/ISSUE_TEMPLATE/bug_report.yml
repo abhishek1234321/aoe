@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a problem with the extension
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please do not include sensitive order details in logs or screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Found in the popup footer (e.g., 0.1.0).
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Edge
+        - Brave
+        - Firefox
+        - Other (specify below)
+    validations:
+      required: true
+  - type: input
+    id: amazon_domain
+    attributes:
+      label: Amazon domain
+      description: Which Amazon site? (e.g., amazon.in)
+      placeholder: "amazon.in"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do?
+      placeholder: |
+        1. Open Orders page
+        2. Choose time filter
+        3. Start scrape
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: Paste console logs if relevant. Remove any order data.
+      render: shell

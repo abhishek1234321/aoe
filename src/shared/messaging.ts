@@ -31,6 +31,10 @@ export type RuntimeMessage =
     }
   | {
       type: 'CANCEL_SCRAPE';
+    }
+  | {
+      type: 'SET_SETTINGS';
+      payload: { notifyOnCompletion?: boolean };
     };
 
 export interface RuntimeResponse<T = unknown> {

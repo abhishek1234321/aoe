@@ -1,7 +1,7 @@
 # Amazon Order Extractor — Agent Guide
 
 ## Project summary
-- Browser extension (MV3) that scrapes Amazon.in order history, tracks scrape progress, and exports CSVs from the popup. Invoice downloading is not implemented yet; invoice URLs are only collected.
+- Browser extension (MV3) that scrapes Amazon.in order history, tracks scrape progress, exports CSVs, and optionally downloads invoices (opt-in).
 - Modules: React popup (`src/popup`), background service worker (`src/background`), content script (`src/content`), shared utilities (`src/shared`). Build via Vite.
 - Time filters: we now respect all dropdown options on the Amazon page (e.g., last 30 days, past 3 months, specific years). The content script applies the selected option before scraping.
 
@@ -19,12 +19,12 @@
 - Time filters: `src/shared/timeFilters.ts` parses all `#time-filter` options (months and years) and applies a selected value; fallback options include last30/months-3 and recent years. The content script waits up to ~8s for the dropdown to appear (`src/content/index.ts`).
 - Popup: surfaces available filters and starts/reset scrape sessions, builds CSV client-side (`src/popup/App.tsx`, `src/shared/csv.ts`).
 - Background session state: merges progress, caps runs at `MAX_ORDERS_PER_RUN` (1000), persists in `browser.storage.session` (`src/background/index.ts`, `src/shared/types.ts`).
-- Scraping: content script parses order cards, auto-clicks next page in the same tab, and resumes via sessionStorage (`src/content/index.ts`, `src/shared/orderParser.ts`).
+- Scraping: content script parses order cards, auto-clicks next page, and resumes via sessionStorage; background opens a hidden tab to avoid disrupting the user (`src/content/index.ts`, `src/background/index.ts`).
 - Manifest/icons: `public/manifest.json`, icons in `public/icons/` (Amazon-themed SVG + generated PNGs).
 
 ## Known gaps / cautions
-- Pagination currently navigates the active tab; this can disrupt the user. Consider background tab or fetch-based pagination before shipping widely.
-- Invoice download queue is not built; adding it will need throttling, retries, and session progress reporting.
+- Large histories beyond 1,000 orders need chunking UX beyond filters.
+- Invoice links/markup can vary; keep parsing defensive and update fixtures/tests as needed.
 - Time filter reliance on `#time-filter` selector—if Amazon changes markup, update `timeFilters.ts` and fixtures.
 - Keep `DEBUG_LOGGING` toggle in `src/shared/constants.ts` in mind when changing logs.
 

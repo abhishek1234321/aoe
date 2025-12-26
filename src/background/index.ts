@@ -15,8 +15,12 @@ let session: ScrapeSessionSnapshot = createEmptySession();
 let scrapeTabId: number | null = null;
 let invoiceQueueRunning = false;
 let cancelInvoiceQueue = false;
+let notifyOnCompletion = false;
+let badgeClearTimeout: ReturnType<typeof setTimeout> | undefined;
+let badgeAcknowledgedAt: number | null = null;
 
 const SESSION_KEY = 'aoe:scrape-session';
+const SETTINGS_KEY = 'aoe:settings';
 
 const debugLog = (...args: unknown[]) => {
   if (DEBUG_LOGGING) {
@@ -40,6 +44,7 @@ const hydrateSession = async () => {
     };
     if (stored && stored[SESSION_KEY]) {
       session = stored[SESSION_KEY];
+      updateBadge();
     }
   } catch (error) {
     console.warn('Failed to hydrate session state', error);
@@ -52,6 +57,27 @@ browser.runtime.onInstalled.addListener(() => {
 });
 
 void hydrateSession();
+
+const hydrateSettings = async () => {
+  try {
+    const stored = (await browser.storage.local.get(SETTINGS_KEY)) as {
+      [SETTINGS_KEY]?: { notifyOnCompletion?: boolean };
+    };
+    notifyOnCompletion = Boolean(stored?.[SETTINGS_KEY]?.notifyOnCompletion);
+  } catch (error) {
+    console.warn('Failed to hydrate settings', error);
+  }
+};
+
+void hydrateSettings();
+
+browser.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local') return;
+  const next = changes[SETTINGS_KEY]?.newValue as { notifyOnCompletion?: boolean } | undefined;
+  if (next && typeof next.notifyOnCompletion === 'boolean') {
+    notifyOnCompletion = next.notifyOnCompletion;
+  }
+});
 
 const mergeOrders = (existing: OrderSummary[], incoming: OrderSummary[]): OrderSummary[] => {
   if (!incoming.length) {
@@ -94,6 +120,8 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
       typeof changes.downloadInvoicesRequested === 'boolean'
         ? changes.downloadInvoicesRequested
         : session.downloadInvoicesRequested ?? false,
+    notifiedAt:
+      typeof changes.notifiedAt === 'number' ? changes.notifiedAt : session.notifiedAt ?? undefined,
     updatedAt: Date.now(),
     hasMorePages:
       typeof changes.hasMorePages === 'boolean' ? changes.hasMorePages : session.hasMorePages ?? undefined,
@@ -104,6 +132,8 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
 const resetSession = () => {
   session = createEmptySession();
   void persistSession();
+  badgeAcknowledgedAt = null;
+  updateBadge();
 };
 
 const closeScrapeTab = async () => {
@@ -238,6 +268,7 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   }
 
   updateSession(changes);
+  updateBadge();
   if (session.phase !== 'running') {
     void closeScrapeTab();
   }
@@ -250,6 +281,7 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   ) {
     void startInvoiceDownloads();
   }
+  void maybeNotifyCompletion();
 };
 
 const orderHistoryPaths = AMAZON_ORDER_HISTORY_URLS.map((url) => {
@@ -332,6 +364,26 @@ const fetchInvoiceDownloadUrl = async (invoiceUrl: string) => {
   return resolveAmazonUrl(selected.href);
 };
 
+const ensureDownloadsPermission = async () => {
+  try {
+    const granted = await browser.permissions.contains({ permissions: ['downloads'] });
+    if (!granted) {
+      updateSession({
+        message: 'Enable downloads permission to save invoices.',
+        invoiceErrors: (session.invoiceErrors ?? 0) + 1,
+      });
+    }
+    return granted;
+  } catch (error) {
+    debugLog('Failed to check downloads permission', error);
+    updateSession({
+      message: 'Unable to verify downloads permission.',
+      invoiceErrors: (session.invoiceErrors ?? 0) + 1,
+    });
+    return false;
+  }
+};
+
 const downloadInvoice = async (url: string, orderId: string) => {
   const folder = session.runId ? `${session.runId}/` : '';
   await browser.downloads.download({
@@ -372,6 +424,10 @@ const startInvoiceDownloads = async () => {
   if (invoiceQueueRunning) {
     return;
   }
+  const hasPermission = await ensureDownloadsPermission();
+  if (!hasPermission) {
+    return;
+  }
   invoiceQueueRunning = true;
   cancelInvoiceQueue = false;
   const tasks = buildInvoiceQueue();
@@ -408,6 +464,81 @@ const startInvoiceDownloads = async () => {
     message: cancelInvoiceQueue ? 'Invoice downloads cancelled.' : 'Invoice downloads complete.',
   });
   invoiceQueueRunning = false;
+};
+
+const updateBadge = () => {
+  if (!browser.action) {
+    return;
+  }
+  if (badgeClearTimeout) {
+    clearTimeout(badgeClearTimeout);
+    badgeClearTimeout = undefined;
+  }
+  const acknowledged = badgeAcknowledgedAt ?? 0;
+  const now = Date.now();
+  const lastUpdate = session.completedAt ?? session.updatedAt;
+  const shouldClearBecauseAcknowledged =
+    session.phase !== 'running' && lastUpdate && acknowledged >= lastUpdate;
+  const shouldClear =
+    session.phase !== 'running' && lastUpdate && now - lastUpdate > 120000;
+  if (shouldClear || shouldClearBecauseAcknowledged || session.phase === 'idle') {
+    void browser.action.setBadgeText({ text: '' });
+    void browser.action.setTitle({ title: 'Amazon Order Extractor' });
+    return;
+  }
+  let text = '';
+  let color = '#64748b';
+  if (session.phase === 'running') {
+    text = session.ordersCollected ? String(Math.min(session.ordersCollected, 999)) : '...';
+    color = '#1d4ed8';
+  } else if (session.phase === 'completed') {
+    text = 'DONE';
+    color = '#16a34a';
+  } else if (session.phase === 'error') {
+    text = 'ERR';
+    color = '#dc2626';
+  }
+  void browser.action.setBadgeText({ text });
+  void browser.action.setBadgeBackgroundColor({ color });
+  if (session.phase === 'running') {
+    void browser.action.setTitle({
+      title: `Amazon Order Extractor — Running (${session.ordersCollected}/${session.ordersLimit})`,
+    });
+  } else if (session.phase === 'completed') {
+    const count = session.orders.length;
+    void browser.action.setTitle({
+      title: count ? `Amazon Order Extractor — Completed (${count} orders)` : 'Amazon Order Extractor — No orders found',
+    });
+  } else if (session.phase === 'error') {
+    void browser.action.setTitle({ title: 'Amazon Order Extractor — Error' });
+  }
+  if (session.phase === 'completed' || session.phase === 'error') {
+    badgeClearTimeout = setTimeout(() => {
+      void browser.action.setBadgeText({ text: '' });
+    }, 120000);
+  }
+};
+
+const maybeNotifyCompletion = async () => {
+  if (!notifyOnCompletion || session.notifiedAt || session.phase !== 'completed') {
+    return;
+  }
+  try {
+    const granted = await browser.permissions.contains({ permissions: ['notifications'] });
+    if (!granted) {
+      return;
+    }
+    const count = session.orders.length;
+    await browser.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-128.png',
+      title: 'Amazon Order Extractor',
+      message: count === 0 ? 'No orders found for the selected range.' : `Scrape complete: ${count} orders ready.`,
+    });
+    updateSession({ notifiedAt: Date.now() });
+  } catch (error) {
+    debugLog('Failed to send completion notification', error);
+  }
 };
 
 const triggerContentScraper = async (payload: ScraperStartPayload) => {
@@ -498,9 +629,17 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
 
   switch (message.type) {
     case 'GET_STATE':
+      if (session.phase !== 'running') {
+        badgeAcknowledgedAt = Date.now();
+      }
+      updateBadge();
       return Promise.resolve({ success: true, data: { state: session } });
 
     case 'GET_CONTEXT': {
+      if (session.phase !== 'running') {
+        badgeAcknowledgedAt = Date.now();
+      }
+      updateBadge();
       return getActiveTab().then((tab) => ({
         success: true,
         data: { state: session, isSupported: isSupportedAmazonUrl(tab?.url ?? null), url: tab?.url },
@@ -597,6 +736,13 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
     case 'CANCEL_INVOICE_DOWNLOADS': {
       cancelInvoiceQueue = true;
       updateSession({ message: 'Cancelling invoice downloads...' });
+      return Promise.resolve({ success: true, data: { state: session } });
+    }
+    case 'SET_SETTINGS': {
+      if (message.payload && typeof message.payload.notifyOnCompletion === 'boolean') {
+        notifyOnCompletion = message.payload.notifyOnCompletion;
+        void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
+      }
       return Promise.resolve({ success: true, data: { state: session } });
     }
     case 'CANCEL_SCRAPE': {

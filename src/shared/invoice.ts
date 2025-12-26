@@ -44,15 +44,23 @@ export const selectInvoiceLink = (links: InvoiceLink[]): InvoiceLink | null => {
     return invoicePdf;
   }
 
+  const pdfLink = links.find((link) => normalize(link.href).endsWith('.pdf'));
+  if (pdfLink) {
+    return pdfLink;
+  }
+
   const invoiceLabel = links.find((link) => normalize(link.label).includes('invoice'));
   if (invoiceLabel) {
-    return invoiceLabel;
+    const hrefLower = normalize(invoiceLabel.href);
+    if (!hrefLower.includes('.html') && !hrefLower.includes('print.html')) {
+      return invoiceLabel;
+    }
   }
 
   const summary = links.find((link) => normalize(link.label).includes('summary'));
-  if (summary) {
+  if (summary && !normalize(summary.href).includes('.html')) {
     return summary;
   }
 
-  return links[0];
+  return null;
 };

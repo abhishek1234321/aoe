@@ -1,6 +1,6 @@
 # Amazon Order Extractor
 
-Work-in-progress browser extension that scrapes amazon.in order history to export CSVs and download invoices. See `docs/PLAN.md` for architecture/roadmap.
+Work-in-progress browser extension that scrapes Amazon.in order history to export CSVs and optionally download invoices. See `docs/PLAN.md` for architecture/roadmap.
 
 ## Privacy
 - All scraping, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
@@ -26,4 +26,10 @@ Work-in-progress browser extension that scrapes amazon.in order history to expor
 | `npm run format`   | Prettier write                            |
 | `npm run format:check` | Prettier verify                       |
 
-The popup + scripts are scaffolded; scraping/downloading logic is still to come.
+Scraping, CSV export, invoice downloads (opt-in), and highlights are implemented and evolving.
+
+## Contributing
+See `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for guidance.
+
+## License
+MIT. See `LICENSE`.

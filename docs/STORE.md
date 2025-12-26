@@ -12,10 +12,12 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
 
 ## Privacy
 - All processing is local. No order data is sent off-device.
+- Privacy policy: `PRIVACY.md` (publish as a URL in the store listing).
 - Permissions:
-  - `activeTab`, `scripting`: inject the content script on the Amazon Orders page you open.
+  - `activeTab`: access the active Amazon Orders tab you open.
   - `storage`: persist scrape state between popup opens.
-  - `downloads`: save invoice PDFs when you opt in to invoice downloads (used only on user request).
+  - `downloads` (optional): save invoice PDFs when you opt in to invoice downloads (requested only on user action).
+  - `notifications` (optional): show a completion notification if you enable it in the popup.
   - Host permissions: `https://www.amazon.in/*` only.
 
 ## Assets needed
@@ -28,4 +30,5 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
 - Note the downloads permission (“Manage your downloads”) is used only when invoice downloads are enabled.
 
 ## Support / feedback (suggested)
-- Mailto or issue link (add to popup/footer if desired).
+- Issue tracker: https://github.com/abhishek1234321/aoe/issues/new
+- Feedback is user-initiated; no automatic data collection.

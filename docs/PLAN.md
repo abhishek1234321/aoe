@@ -6,9 +6,10 @@
 - Show clear status/error messages; keep user data local (no external calls).
 
 ## Current Status
-- Content script parses order cards, handles pagination, extracts available years from the page.
-+- Popup: year selector (auto-populated), start/reset, CSV download; zero-state card when not on an order page.
--- CSV is generated client-side on download (no Blob storage in SW). Debug logging via `[AOE:content]` / `[AOE:bg]`.
+- Content script parses order cards, handles pagination, applies time filters, and extracts available filters from the page.
+- Popup: time filter selection, start/reset, CSV download; zero-state card when not on an order page.
+- CSV is generated client-side on download; invoice downloads are opt-in with progress and retry hints.
+- Background scraping runs in a hidden tab to avoid disrupting the user.
 
 ## Next Up
 1. Improve scraping UX (avoid user disruption while paging; move pagination to a background/hidden tab). ✅
@@ -19,9 +20,9 @@
 7. Store prep: finalize listing copy/assets, keep debug off in prod, and ensure invoice downloads stay opt-in. ⏳
 
 ## Risks / Watch
-- Pagination flow can disrupt the user (same-tab navigation).
-- Large histories (>1k) still need chunking UX beyond the year filter.
+- Large histories (>1k) still need chunking UX beyond the time filter.
 - Invoice links/markup can vary; need defensive parsing.
+- Optional permissions (downloads/notifications) require clear user guidance.
 
 ## How to Run / Debug
 - Dev (unminified + sourcemaps): `npm run dev` then reload the unpacked extension.

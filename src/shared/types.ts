@@ -45,6 +45,7 @@ export interface ScrapeSessionSnapshot {
   phase: ScrapePhase;
   runId?: string;
   downloadInvoicesRequested?: boolean;
+  notifiedAt?: number;
   ordersCollected: number;
   invoicesQueued: number;
   invoicesDownloaded: number;
@@ -92,6 +93,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   invoiceErrors: 0,
   invoiceDownloadsStarted: false,
   downloadInvoicesRequested: false,
+  notifiedAt: undefined,
   ordersLimit: MAX_ORDERS_PER_RUN,
   orders: [],
   hasMorePages: undefined,

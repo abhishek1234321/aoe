@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and feedback
+    url: https://github.com/abhishek1234321/aoe/issues/new
+    about: Use Issues for questions, feedback, and quick discussions.
