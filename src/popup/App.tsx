@@ -61,10 +61,9 @@ const App = () => {
   const [availableFilters, setAvailableFilters] = useState<TimeFilterOption[]>([]);
   const [isOnOrderPage, setIsOnOrderPage] = useState<boolean | null>(null);
   const [downloadInvoices, setDownloadInvoices] = useState<boolean>(false);
-  const [showHighlights, setShowHighlights] = useState<boolean>(false);
   const [view, setView] = useState<'main' | 'highlights'>('main');
-  const [showFilterForm, setShowFilterForm] = useState<boolean>(true);
-  const [version, setVersion] = useState<string>('');
+  const [showFilterOverride, setShowFilterOverride] = useState<boolean>(false);
+  const [version] = useState(() => browser.runtime.getManifest().version ?? '');
   const [notifyOnCompletion, setNotifyOnCompletion] = useState<boolean>(false);
 
   useEffect(() => {
@@ -112,20 +111,6 @@ const App = () => {
   }, [setSession]);
 
   useEffect(() => {
-    if (session?.phase !== 'completed') {
-      setShowHighlights(false);
-      setView('main');
-    }
-  }, [session?.phase]);
-
-  useEffect(() => {
-    const manifest = browser.runtime.getManifest();
-    if (manifest?.version) {
-      setVersion(manifest.version);
-    }
-  }, []);
-
-  useEffect(() => {
     void browser.storage.local.get('aoe:settings').then((stored) => {
       const next = (stored['aoe:settings'] as { notifyOnCompletion?: boolean } | undefined)?.notifyOnCompletion;
       if (typeof next === 'boolean') {
@@ -136,6 +121,8 @@ const App = () => {
 
   const isRunning = session?.phase === 'running';
   const isBlockedPage = isOnOrderPage === false;
+  const isCompleted = session?.phase === 'completed';
+  const viewMode = isCompleted ? view : 'main';
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -143,6 +130,8 @@ const App = () => {
       return;
     }
     setLoading(true);
+    setView('main');
+    setShowFilterOverride(false);
     const chosen = availableFilters.find((option) => option.value === selectedFilter);
     const parsedYear =
       chosen?.year ?? (selectedFilter.startsWith('year-') ? Number(selectedFilter.replace('year-', '')) : undefined);
@@ -182,6 +171,8 @@ const App = () => {
       return;
     }
     setLoading(true);
+    setView('main');
+    setShowFilterOverride(false);
     const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
       type: 'RESET_SCRAPE',
     });
@@ -239,15 +230,13 @@ const App = () => {
         session.errorMessage.includes('Timed out waiting for scrape tab')),
   );
 
-  useEffect(() => {
-    setShowFilterForm(!isEmptyResult);
-  }, [isEmptyResult]);
+  const showFilterForm = !isEmptyResult || showFilterOverride;
 
   const requestPermission = async (permission: 'downloads' | 'notifications') => {
     try {
       const granted = await browser.permissions.request({ permissions: [permission] });
       return granted;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
@@ -314,14 +303,13 @@ const App = () => {
     <div className="popup-container">
       <header className="popup-header sticky-header">
         <div className="header-row">
-          {view === 'highlights' ? (
+          {viewMode === 'highlights' ? (
             <button
               type="button"
               className="secondary-button"
               style={{ width: 'auto', padding: '6px 10px', marginBottom: 0 }}
               onClick={() => {
                 setView('main');
-                setShowHighlights(false);
               }}
             >
               ← Back
@@ -428,13 +416,12 @@ const App = () => {
           </form>
           )}
 
-          {canShowHighlights && view === 'main' ? (
+          {canShowHighlights && viewMode === 'main' ? (
             <button
               type="button"
               className="secondary-button"
               style={{ marginTop: '8px' }}
               onClick={() => {
-                setShowHighlights(true);
                 setView('highlights');
               }}
             >
@@ -507,7 +494,7 @@ const App = () => {
           )}
         </section>
 
-        {view === 'highlights' && canShowHighlights ? (
+        {viewMode === 'highlights' && canShowHighlights ? (
           <section className="status-block">
             <div className="highlight-card">
               <div className="highlight-row">
@@ -584,7 +571,7 @@ const App = () => {
                 style={{ marginTop: '12px' }}
                 onClick={() => {
                   setSelectedFilter('');
-                  setShowFilterForm(true);
+                  setShowFilterOverride(true);
                 }}
               >
                 Choose another timeframe

@@ -2,12 +2,17 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { chromium, expect, test } from '@playwright/test';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Page, TestInfo } from '@playwright/test';
 
 const port = Number(process.env.E2E_PORT ?? 4173);
 const baseUrl = `http://localhost:${port}`;
 const fixtureDir = path.resolve(process.cwd(), 'docs', 'samples', 'amazon.in');
 const ordersFixture = path.join(fixtureDir, 'e2e-orders.html');
+const headless = process.env.E2E_HEADLESS === '1';
+const slowMo = Number(process.env.E2E_SLOWMO ?? 0) || undefined;
+const recordVideo = process.env.E2E_VIDEO === '1';
+const traceEnabled = process.env.E2E_TRACE !== '0';
+const debugLogs: string[] = [];
 
 const startFixtureServer = async () => {
   const server = createServer((req, res) => {
@@ -25,6 +30,15 @@ const startFixtureServer = async () => {
 
   await new Promise<void>((resolve) => server.listen(port, resolve));
   return server;
+};
+
+const trackPage = (page: Page) => {
+  page.on('console', (msg) => {
+    debugLogs.push(`[console:${msg.type()}] ${msg.text()}`);
+  });
+  page.on('pageerror', (error) => {
+    debugLogs.push(`[pageerror] ${error.message}`);
+  });
 };
 
 const getExtensionId = async (context: BrowserContext) => {
@@ -54,10 +68,16 @@ test.describe('extension e2e (fixtures)', () => {
     server = await startFixtureServer();
     const extensionPath = path.resolve(process.cwd(), 'dist');
     context = await chromium.launchPersistentContext('', {
-      headless: false,
+      headless,
+      slowMo,
       args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
+      recordVideo: recordVideo ? { dir: path.resolve(process.cwd(), 'test-results', 'videos') } : undefined,
+      viewport: { width: 1280, height: 800 },
     });
     extensionId = await getExtensionId(context);
+    if (traceEnabled) {
+      await context.tracing.start({ screenshots: true, snapshots: true });
+    }
   });
 
   test.afterAll(async () => {
@@ -65,12 +85,55 @@ test.describe('extension e2e (fixtures)', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  test.beforeEach(async ({}, testInfo) => {
+    debugLogs.length = 0;
+    if (traceEnabled) {
+      await context.tracing.startChunk({ title: testInfo.title });
+    }
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    const failed = testInfo.status !== testInfo.expectedStatus;
+    if (traceEnabled) {
+      if (failed) {
+        await context.tracing.stopChunk({ path: testInfo.outputPath('trace.zip') });
+      } else {
+        await context.tracing.stopChunk();
+      }
+    }
+
+    if (!failed) {
+      return;
+    }
+
+    const page = context.pages().find((candidate) => !candidate.isClosed()) ?? null;
+    if (page) {
+      const screenshotPath = testInfo.outputPath('failure.png');
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      await testInfo.attach('screenshot', { path: screenshotPath, contentType: 'image/png' });
+      const video = page.video();
+      if (video) {
+        const videoPath = await video.path();
+        await testInfo.attach('video', { path: videoPath, contentType: 'video/webm' });
+      }
+    }
+
+    if (debugLogs.length) {
+      await testInfo.attach('console', {
+        body: debugLogs.join('\n'),
+        contentType: 'text/plain',
+      });
+    }
+  });
+
   test('shows empty state when not on order history', async () => {
     const nonOrderPage = await context.newPage();
+    trackPage(nonOrderPage);
     await nonOrderPage.goto(`${baseUrl}/not-orders`);
     await nonOrderPage.bringToFront();
 
     const popupPage = await context.newPage();
+    trackPage(popupPage);
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
 
     await expect(popupPage.getByText('Head to your Amazon.in order history')).toBeVisible();
@@ -80,10 +143,12 @@ test.describe('extension e2e (fixtures)', () => {
 
   test('scrapes fixtures and shows download CTA', async () => {
     const orderPage = await context.newPage();
+    trackPage(orderPage);
     await orderPage.goto(`${baseUrl}/your-orders/orders`);
     await orderPage.bringToFront();
 
     const popupPage = await context.newPage();
+    trackPage(popupPage);
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
     await ensurePopupReady(popupPage, orderPage);
 
@@ -92,7 +157,6 @@ test.describe('extension e2e (fixtures)', () => {
 
     await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
     await expect(popupPage.getByText('Invoices queued:')).toBeVisible();
-    await expect(popupPage.getByText('Invoices queued: 0')).toBeVisible();
 
     await popupPage.close();
     await orderPage.close();

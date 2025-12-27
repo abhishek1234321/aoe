@@ -13,6 +13,7 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
 ## Privacy
 - All processing is local. No order data is sent off-device.
 - Privacy policy: `PRIVACY.md` (publish as a URL in the store listing).
+- No remote code or analytics; everything is bundled with the extension.
 - Permissions:
   - `activeTab`: access the active Amazon Orders tab you open.
   - `storage`: persist scrape state between popup opens.

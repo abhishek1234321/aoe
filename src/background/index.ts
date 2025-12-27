@@ -24,10 +24,12 @@ const SETTINGS_KEY = 'aoe:settings';
 
 const debugLog = (...args: unknown[]) => {
   if (DEBUG_LOGGING) {
-    // eslint-disable-next-line no-console
     console.info('[AOE:bg]', ...args);
   }
 };
+
+const isAuthorizedSender = (sender?: browser.Runtime.MessageSender) =>
+  !sender?.id || sender.id === browser.runtime.id;
 
 const persistSession = async () => {
   try {
@@ -454,7 +456,6 @@ const startInvoiceDownloads = async () => {
       }
       const task = tasks[index];
       index += 1;
-      // eslint-disable-next-line no-await-in-loop
       await processInvoiceTask(task);
     }
   };
@@ -621,13 +622,21 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
   }
 };
 
-browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<RuntimeResponse<unknown>> => {
+browser.runtime.onMessage.addListener((
+  message: unknown,
+  sender: browser.Runtime.MessageSender,
+): Promise<RuntimeResponse<unknown>> => {
   debugLog('runtime message received', message);
-  if (!message) {
+  if (!isAuthorizedSender(sender)) {
+    return Promise.resolve({ success: false, error: 'Unauthorized sender' });
+  }
+  if (!message || typeof message !== 'object' || !('type' in message)) {
     return Promise.resolve({ success: false, error: 'Invalid message' });
   }
 
-  switch (message.type) {
+  const typedMessage = message as RuntimeMessage;
+
+  switch (typedMessage.type) {
     case 'GET_STATE':
       if (session.phase !== 'running') {
         badgeAcknowledgedAt = Date.now();
@@ -657,8 +666,9 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
               scope: SCRAPER_MESSAGE_SCOPE,
               command: 'GET_FILTERS',
             });
-            if (Array.isArray(response?.filters) && response.filters.length) {
-              return { success: true, data: { filters: response.filters as TimeFilterOption[] } };
+            const filters = (response as { filters?: unknown } | undefined)?.filters;
+            if (Array.isArray(filters) && filters.length) {
+              return { success: true, data: { filters: filters as TimeFilterOption[] } };
             }
           } catch (error) {
             console.warn('Failed to query years from content script', error);
@@ -673,28 +683,28 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
         return Promise.resolve({ success: false, error: 'Scraper is already running' });
       }
       const startState = handleStartScrape({
-        year: message.payload.year,
-        timeFilterValue: message.payload.timeFilterValue,
-        timeFilterLabel: message.payload.timeFilterLabel,
-        downloadInvoices: message.payload.downloadInvoices,
-        reuseExistingOrders: message.payload.reuseExistingOrders,
+        year: typedMessage.payload.year,
+        timeFilterValue: typedMessage.payload.timeFilterValue,
+        timeFilterLabel: typedMessage.payload.timeFilterLabel,
+        downloadInvoices: typedMessage.payload.downloadInvoices,
+        reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
       });
-      if (message.payload.reuseExistingOrders) {
+      if (typedMessage.payload.reuseExistingOrders) {
         updateSession({
           phase: 'completed',
           ordersCollected: session.orders.length,
         });
-        if (message.payload.downloadInvoices) {
+        if (typedMessage.payload.downloadInvoices) {
           void startInvoiceDownloads();
         }
         return Promise.resolve({ success: true, data: { state: session } });
       }
       const scrapePayload: ScraperStartPayload = {
-        year: message.payload.year,
-        timeFilterValue: message.payload.timeFilterValue,
-        timeFilterLabel: message.payload.timeFilterLabel,
-        downloadInvoices: message.payload.downloadInvoices,
-        reuseExistingOrders: message.payload.reuseExistingOrders,
+        year: typedMessage.payload.year,
+        timeFilterValue: typedMessage.payload.timeFilterValue,
+        timeFilterLabel: typedMessage.payload.timeFilterLabel,
+        downloadInvoices: typedMessage.payload.downloadInvoices,
+        reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
         limit: session.ordersLimit,
       };
       return triggerContentScraper(scrapePayload)
@@ -724,7 +734,7 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
     }
 
     case 'SCRAPE_PROGRESS': {
-      handleProgressUpdate(message.payload);
+      handleProgressUpdate(typedMessage.payload);
       return Promise.resolve({ success: true, data: { state: session } });
     }
 
@@ -739,8 +749,8 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
       return Promise.resolve({ success: true, data: { state: session } });
     }
     case 'SET_SETTINGS': {
-      if (message.payload && typeof message.payload.notifyOnCompletion === 'boolean') {
-        notifyOnCompletion = message.payload.notifyOnCompletion;
+      if (typedMessage.payload && typeof typedMessage.payload.notifyOnCompletion === 'boolean') {
+        notifyOnCompletion = typedMessage.payload.notifyOnCompletion;
         void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
       }
       return Promise.resolve({ success: true, data: { state: session } });
@@ -750,6 +760,6 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage): Promise<Runtime
     }
 
     default:
-      return Promise.resolve({ success: false, error: `Unknown message: ${String(message['type'])}` });
+      return Promise.resolve({ success: false, error: `Unknown message: ${String((typedMessage as { type?: string }).type)}` });
   }
 });

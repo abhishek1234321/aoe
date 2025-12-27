@@ -12,7 +12,6 @@ let isScraping = false;
 const AUTO_SCRAPE_STORAGE_KEY = '__aoe:auto-scrape';
 const debugLog = (...args: unknown[]) => {
   if (DEBUG_LOGGING) {
-    // eslint-disable-next-line no-console
     console.info('[AOE:content]', ...args);
   }
 };
@@ -194,7 +193,10 @@ const executeScrape = async (payload: ScraperStartPayload) => {
   }
 };
 
-browser.runtime.onMessage.addListener((message: unknown) => {
+browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime.MessageSender) => {
+  if (sender?.id && sender.id !== browser.runtime.id) {
+    return undefined;
+  }
   if (isScraperMessage(message)) {
     if (message.command === 'START') {
       debugLog('Received START command', message.payload);

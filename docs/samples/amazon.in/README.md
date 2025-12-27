@@ -1,6 +1,7 @@
 # Amazon.in fixtures
 
 These HTML fixtures mirror the Amazon.in order pages for parsing and E2E tests.
+All fixtures must be sanitized and contain no PII (names, addresses, real order IDs, invoices).
 
 ## Current fixtures
 - `order-list.html`

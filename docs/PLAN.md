@@ -10,6 +10,8 @@
 - Popup: time filter selection, start/reset, CSV download; zero-state card when not on an order page.
 - CSV is generated client-side on download; invoice downloads are opt-in with progress and retry hints.
 - Background scraping runs in a hidden tab to avoid disrupting the user.
+- Security baseline: CI lint/typecheck/tests, CodeQL + Trivy scans, Dependabot, npm audit (high/critical).
+- Fixture archive added for Amazon.in snapshots; fixtures are sanitized and versioned by date.
 
 ## Next Up
 1. Improve scraping UX (avoid user disruption while paging; move pagination to a background/hidden tab). ✅
@@ -17,6 +19,7 @@
 3. Invoice download manager (queue, throttle, retries) once CSV scrape is solid. ✅
 4. Expand parser/CSV tests with markup variants. ✅
 5. Polish popup UX (status/error clarity, disable states). ✅
+6. E2E tests against local fixtures (no live Amazon). ✅
 7. Store prep: finalize listing copy/assets, keep debug off in prod, and ensure invoice downloads stay opt-in. ⏳
 
 ## Risks / Watch
@@ -35,8 +38,8 @@
 - CSV built in popup at download time.
 
 ## Open Questions
-- Best navigation strategy to avoid user-page disruption during pagination?
-- What invoice download concurrency/backoff is safe without throttling? 
+- Do we need pagination safeguards beyond yearly chunking for users with 2k+ orders?
+- Should invoice downloads allow configurable concurrency or stick to a fixed low number (e.g., 2 at a time)?
 
 ## Implementation Steps
 1. Scaffold project (Vite + TS), add manifest template(s), linting, npm scripts.

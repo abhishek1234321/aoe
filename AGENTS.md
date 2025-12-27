@@ -14,6 +14,8 @@
 - Unit tests: `npm run test:ci` (Vitest; fixtures in `docs/samples/amazon.in`).
 - Type check: `npm run typecheck`.
 - Lint/format: `npm run lint`, `npm run format:check`.
+- E2E (fixtures): `npm run e2e` after `npm run e2e:install`.
+- Security audit: `npm run security:audit` (high/critical).
 
 ## Key behaviors & files
 - Time filters: `src/shared/timeFilters.ts` parses all `#time-filter` options (months and years) and applies a selected value; fallback options include last30/months-3 and recent years. The content script waits up to ~8s for the dropdown to appear (`src/content/index.ts`).
@@ -31,6 +33,7 @@
 ## Practical notes
 - Prefer `rg` for search; use `apply_patch` for manual edits. Avoid destructive git commands.
 - Preserve sample HTML in `docs/samples/amazon.in/` and extend fixtures/tests when selectors change.
+- Keep fixture history in `docs/samples/amazon.in/archive/YYYY-MM-DD/` and ensure fixtures have no PII.
 - Popup layout is flexible width (min ~360px, max ~440px); avoid shrinking below that to prevent clipping.
 - For UX-impacting changes (new flows, download behavior, prompts), propose options and get user sign-off before implementing. Default to opt-in toggles when the change could surprise users.
 - Privacy: keep all order data processing local. No external calls without explicit, informed user consent. If a feature must call out, surface a clear prompt and document the data sent.

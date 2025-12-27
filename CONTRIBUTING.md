@@ -19,11 +19,21 @@ Run these before opening a PR:
 - `npm run typecheck`
 - `npm run test:ci`
 - `npm run format:check`
+- `npm run security:audit`
 
 ## E2E tests (fixtures)
 We run extension E2E against local HTML fixtures (not live Amazon pages).
 1. Install the Playwright browser once: `npm run e2e:install`
 2. Run E2E: `npm run e2e`
+3. Optional debug flags:
+   - `E2E_HEADLESS=1` to run headless
+   - `E2E_SLOWMO=250` to slow actions
+   - `E2E_VIDEO=1` to record videos
+   - `E2E_TRACE=0` to disable traces (enabled by default)
+
+## Security checks
+- Local audit: `npm run security:audit`
+- Optional Trivy scan (if installed): `trivy fs . --severity HIGH,CRITICAL`
 
 ## Tests
 Unit/integration tests live in `tests/` and use fixtures in `docs/samples/amazon.in/`.

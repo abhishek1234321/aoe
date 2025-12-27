@@ -26,7 +26,6 @@ export const parseInvoiceLinks = (html: string): InvoiceLink[] => {
   const regex = /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   const links: InvoiceLink[] = [];
   let match: RegExpExecArray | null;
-  // eslint-disable-next-line no-cond-assign
   while ((match = regex.exec(html)) !== null) {
     links.push({ href: match[1], label: cleanText(match[2]) });
   }

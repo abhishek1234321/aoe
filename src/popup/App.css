@@ -182,6 +182,35 @@
   cursor: pointer;
 }
 
+.primary-button,
+.secondary-button,
+.download-button,
+.hero-cta {
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.secondary-button:not(.disabled):hover,
+.secondary-button:not(.disabled):focus-visible {
+  background-color: #e0e7ff;
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 2px rgba(165, 180, 252, 0.3);
+}
+
+.download-button:hover,
+.download-button:focus-visible {
+  background-color: #a7f3d0;
+  border-color: #047857;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.hero-cta:hover,
+.hero-cta:focus-visible,
+.primary-button:not(.disabled):hover,
+.primary-button:not(.disabled):focus-visible {
+  background-color: #1b2836;
+  box-shadow: 0 0 0 2px rgba(35, 47, 62, 0.2);
+}
+
 .illustration {
   width: 64px;
   height: 64px;
