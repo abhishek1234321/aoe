@@ -1,9 +1,9 @@
 import browser from 'webextension-polyfill';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { AMAZON_ORDER_HISTORY_URLS, MAX_ORDERS_PER_RUN } from '@shared/constants';
+import { AMAZON_HOST, AMAZON_ORDER_HISTORY_URLS, MAX_ORDERS_PER_RUN, SUPPORT_EMAIL } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { ordersToCsv } from '@shared/csv';
-import type { ScrapeSessionSnapshot } from '@shared/types';
+import type { OrderSummary, ScrapeSessionSnapshot } from '@shared/types';
 import type { TimeFilterOption } from '@shared/timeFilters';
 import { computeHighlights } from '@shared/highlights';
 import heroOrders from '../assets/hero-orders.svg';
@@ -65,6 +65,9 @@ const App = () => {
   const [showFilterOverride, setShowFilterOverride] = useState<boolean>(false);
   const [version] = useState(() => browser.runtime.getManifest().version ?? '');
   const [notifyOnCompletion, setNotifyOnCompletion] = useState<boolean>(false);
+  const [diagnosticsNotice, setDiagnosticsNotice] = useState<string | null>(null);
+  const supportEmail = SUPPORT_EMAIL.trim();
+  const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
 
   useEffect(() => {
     void refresh();
@@ -123,6 +126,50 @@ const App = () => {
   const isBlockedPage = isOnOrderPage === false;
   const isCompleted = session?.phase === 'completed';
   const viewMode = isCompleted ? view : 'main';
+
+  const buildDiagnostics = () => {
+    const sessionSnapshot = session
+      ? {
+          phase: session.phase,
+          runId: session.runId,
+          message: session.message,
+          errorMessage: session.errorMessage,
+          ordersCollected: session.ordersCollected,
+          ordersLimit: session.ordersLimit,
+          ordersCount: session.orders?.length ?? 0,
+          invoicesQueued: session.invoicesQueued,
+          invoicesDownloaded: session.invoicesDownloaded,
+          invoiceErrors: session.invoiceErrors,
+          invoiceDownloadsStarted: session.invoiceDownloadsStarted,
+          downloadInvoicesRequested: session.downloadInvoicesRequested,
+          hasMorePages: session.hasMorePages,
+          timeFilterValue: session.timeFilterValue,
+          timeFilterLabel: session.timeFilterLabel,
+          yearFilter: session.yearFilter,
+          startedAt: session.startedAt,
+          completedAt: session.completedAt,
+          updatedAt: session.updatedAt,
+        }
+      : null;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      extensionVersion: version,
+      amazonHost: AMAZON_HOST,
+      locale: navigator.language,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      userAgent: navigator.userAgent,
+      popup: {
+        selectedFilter,
+        view: viewMode,
+        isOnOrderPage,
+        downloadInvoicesToggle: downloadInvoices,
+        notifyOnCompletion,
+      },
+      session: sessionSnapshot,
+      popupError: error,
+    };
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -185,6 +232,45 @@ const App = () => {
     setLoading(false);
   };
 
+  const openDiagnosticsIssue = () => {
+    const diagnosticsText = JSON.stringify(buildDiagnostics(), null, 2);
+    const issueBody = [
+      'Please describe what you were doing and attach any screenshots if helpful.',
+      '',
+      'Diagnostics:',
+      '```json',
+      diagnosticsText,
+      '```',
+    ].join('\n');
+    const issueUrl = new URL(FEEDBACK_URL);
+    issueUrl.searchParams.set('title', 'Bug report: <short summary>');
+    issueUrl.searchParams.set('body', issueBody);
+    window.open(issueUrl.toString(), '_blank', 'noopener');
+  };
+
+  const copyDiagnostics = async () => {
+    const diagnosticsText = JSON.stringify(buildDiagnostics(), null, 2);
+    try {
+      await navigator.clipboard.writeText(diagnosticsText);
+      setDiagnosticsNotice('Diagnostics copied. Paste them into an issue or email.');
+    } catch {
+      window.prompt('Copy diagnostics:', diagnosticsText);
+    }
+  };
+
+  const downloadDiagnostics = () => {
+    const diagnosticsText = JSON.stringify(buildDiagnostics(), null, 2);
+    const blob = new Blob([diagnosticsText], { type: 'text/plain;charset=utf-8;' });
+    const anchor = document.createElement('a');
+    const runIdSuffix = session?.runId ? `-${session.runId}` : '';
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `aoe-diagnostics${runIdSuffix}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(anchor.href);
+  };
+
   const statusMessage = useMemo(() => {
     if (!session) {
       return 'Initializing…';
@@ -209,6 +295,26 @@ const App = () => {
   }, [session]);
 
   const activeError = error ?? session?.errorMessage ?? null;
+  const showDiagnostics = Boolean(activeError || session?.phase === 'error');
+  const canEmailDiagnostics = Boolean(supportEmail);
+  const supportMailto = useMemo(() => {
+    if (!supportEmail) {
+      return '';
+    }
+    const subject = 'Amazon Order Extractor diagnostics';
+    const body = [
+      'Hi,',
+      '',
+      'I ran into an issue with Amazon Order Extractor.',
+      'Please attach diagnostics.txt or paste diagnostics from the clipboard.',
+      '',
+      `Extension version: ${version || 'unknown'}`,
+      `Run ID: ${session?.runId ?? 'n/a'}`,
+      `Phase: ${session?.phase ?? 'n/a'}`,
+      `Error: ${activeError ?? 'n/a'}`,
+    ].join('\n');
+    return `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }, [supportEmail, version, session?.runId, session?.phase, activeError]);
   const showReset =
     Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
   const canDownload = Boolean(session?.orders?.length && session?.phase === 'completed');
@@ -240,10 +346,67 @@ const App = () => {
       return false;
     }
   };
-  const summary = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
+  const overallHighlights = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
     session?.orders,
     session?.timeFilterValue,
   ]);
+
+  const buyerGroups = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; orders: OrderSummary[] }>();
+    (session?.orders ?? []).forEach((order) => {
+      const rawName = order.buyerName?.trim();
+      const label = rawName || 'Unknown buyer';
+      const key = label;
+      const existing = map.get(key);
+      if (existing) {
+        existing.orders.push(order);
+      } else {
+        map.set(key, { key, label, orders: [order] });
+      }
+    });
+    return Array.from(map.values())
+      .map((group) => {
+        const highlights = computeHighlights(group.orders, session?.timeFilterValue);
+        return {
+          ...group,
+          highlights,
+        };
+      })
+      .sort((a, b) => b.orders.length - a.orders.length || a.label.localeCompare(b.label));
+  }, [session?.orders, session?.timeFilterValue]);
+
+  useEffect(() => {
+    if (selectedBuyer === 'all') {
+      return;
+    }
+    if (!buyerGroups.some((group) => group.key === selectedBuyer)) {
+      setSelectedBuyer('all');
+    }
+  }, [buyerGroups, selectedBuyer]);
+
+  const selectedGroup = buyerGroups.find((group) => group.key === selectedBuyer);
+  const summary = selectedBuyer === 'all' ? overallHighlights : selectedGroup?.highlights ?? overallHighlights;
+  const summaryLabel = selectedBuyer === 'all' ? 'All orders' : selectedGroup?.label ?? 'All orders';
+  const buyerRows = useMemo(() => {
+    const rows = [
+      {
+        key: 'all',
+        label: 'All orders',
+        orders: overallHighlights.totalOrders,
+        spend: overallHighlights.formattedSpend || '—',
+      },
+    ];
+    buyerGroups.forEach((group) => {
+      rows.push({
+        key: group.key,
+        label: group.label,
+        orders: group.highlights.totalOrders,
+        spend: group.highlights.formattedSpend || '—',
+      });
+    });
+    return rows;
+  }, [buyerGroups, overallHighlights]);
+  const showBuyerGroups = buyerGroups.length > 1;
 
   const filterOptions = useMemo(() => {
     if (availableFilters.length) {
@@ -496,6 +659,27 @@ const App = () => {
 
         {viewMode === 'highlights' && canShowHighlights ? (
           <section className="status-block">
+            <p className="scope-label">Showing highlights for: {summaryLabel}</p>
+            {showBuyerGroups ? (
+              <div className="highlight-card">
+                <div className="highlight-label">Buyer breakdown</div>
+                <div className="buyer-list">
+                  {buyerRows.map((row) => (
+                    <button
+                      key={row.key}
+                      type="button"
+                      className={`buyer-row ${selectedBuyer === row.key ? 'active' : ''}`}
+                      onClick={() => setSelectedBuyer(row.key)}
+                    >
+                      <span className="buyer-name">{row.label}</span>
+                      <span className="buyer-meta">
+                        {row.orders} orders • {row.spend}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="highlight-card">
               <div className="highlight-row">
                 <div>
@@ -627,6 +811,28 @@ const App = () => {
             <dd>{formatTimestamp(session?.completedAt)}</dd>
           </dl>
           {activeError ? <p className="error-text">{activeError}</p> : session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>}
+          {showDiagnostics && (
+            <div className="diagnostics-card">
+              <div>Share diagnostics so we can debug faster. This includes extension version, counts, and error context (no order data).</div>
+              <div className="diagnostics-actions">
+                <button type="button" className="secondary-button" onClick={copyDiagnostics}>
+                  Copy diagnostics
+                </button>
+                <button type="button" className="secondary-button" onClick={downloadDiagnostics}>
+                  Download diagnostics.txt
+                </button>
+                {canEmailDiagnostics ? (
+                  <a className="secondary-button" href={supportMailto} target="_blank" rel="noreferrer">
+                    Email support
+                  </a>
+                ) : null}
+                <button type="button" className="secondary-button" onClick={openDiagnosticsIssue}>
+                  Open issue
+                </button>
+              </div>
+              {diagnosticsNotice ? <div className="diagnostics-note">{diagnosticsNotice}</div> : null}
+            </div>
+          )}
           {canRetryScrape && (
             <div className="retry-hint">
               <strong>Scrape tab failed.</strong> Make sure the Amazon Orders page is open and you are signed in,

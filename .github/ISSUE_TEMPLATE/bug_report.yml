@@ -64,3 +64,9 @@ body:
       label: Logs (optional)
       description: Paste console logs if relevant. Remove any order data.
       render: shell
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: Paste diagnostics JSON from the extension (Share diagnostics → Copy). Do not include order data.
+      render: json

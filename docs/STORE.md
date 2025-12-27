@@ -27,6 +27,7 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
 
 ## Store metadata (fill before submission)
 - Support email: TODO
+- Also set `SUPPORT_EMAIL` in `src/shared/constants.ts` to show the email support option in the popup.
 - Privacy policy URL: https://abhishek1234321.github.io/aoe/privacy.html
 - Homepage URL: https://github.com/abhishek1234321/aoe
 - Issue tracker: https://github.com/abhishek1234321/aoe/issues/new

@@ -15,3 +15,4 @@ export const AMAZON_ORDER_HISTORY_URLS = primaryHost.orderHistoryPaths.map(
 export const MAX_ORDERS_PER_RUN = 1000;
 export const SCRAPER_MESSAGE_SCOPE = 'aoe:scraper';
 export const DEBUG_LOGGING = Boolean(import.meta.env?.DEV);
+export const SUPPORT_EMAIL = 'aoesupport@gmail.com';
