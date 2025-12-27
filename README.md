@@ -5,6 +5,8 @@ Work-in-progress browser extension that scrapes Amazon.in order history to expor
 ## Privacy
 - All scraping, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
 - If a future feature needs to call external services, it must be explicitly consented to by the user before any data leaves the machine.
+- Privacy policy (for store listing): `docs/privacy.md` (hosted via GitHub Pages).
+  - Enable GitHub Pages from the repository settings with the `docs/` folder.
 
 ## Getting Started
 

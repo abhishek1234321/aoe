@@ -25,6 +25,19 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
 - Icons: already in `public/icons/` (16/32/48/128/256).
 - Promo images/screenshots (prepare before submission): 1280x800, 640x400, 440x280.
 
+## Store metadata (fill before submission)
+- Support email: TODO
+- Privacy policy URL: https://abhishek1234321.github.io/aoe/privacy.html
+- Homepage URL: https://github.com/abhishek1234321/aoe
+- Issue tracker: https://github.com/abhishek1234321/aoe/issues/new
+
+## Suggested screenshot set
+- Time filter selection + start button (idle state)
+- Scrape running state with progress + status
+- Completed state with Download CSV button
+- Highlights view
+- Privacy footer visible
+
 ## Listing checklist
 - Turn off debug logging for release (`DEBUG_LOGGING` false in production builds).
 - Mention data-local processing and optional invoices in the listing text.
