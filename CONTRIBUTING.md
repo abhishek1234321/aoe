@@ -20,6 +20,11 @@ Run these before opening a PR:
 - `npm run test:ci`
 - `npm run format:check`
 
+## E2E tests (fixtures)
+We run extension E2E against local HTML fixtures (not live Amazon pages).
+1. Install the Playwright browser once: `npm run e2e:install`
+2. Run E2E: `npm run e2e`
+
 ## Tests
 Unit/integration tests live in `tests/` and use fixtures in `docs/samples/amazon.in/`.
 Add or update fixtures if Amazon markup changes.

@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Amazon Order Extractor (E2E)",
+  "description": "E2E test manifest for local fixtures.",
+  "version": "0.1.0",
+  "action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png",
+      "256": "icons/icon-256.png"
+    },
+    "default_title": "Amazon Order Extractor",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["activeTab", "storage"],
+  "optional_permissions": ["downloads", "notifications"],
+  "host_permissions": ["https://www.amazon.in/*", "http://localhost:*/*"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.in/gp/css/order-history*",
+        "https://www.amazon.in/gp/your-account/order-history*",
+        "https://www.amazon.in/*/order-history*",
+        "https://www.amazon.in/your-orders*",
+        "http://localhost:*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["https://www.amazon.in/*", "http://localhost:*/*"]
+    }
+  ]
+}

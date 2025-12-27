@@ -22,6 +22,8 @@ Work-in-progress browser extension that scrapes Amazon.in order history to expor
 | `npm run clean`    | Remove `dist/`                             |
 | `npm run lint`     | ESLint across `src`                       |
 | `npm run test`     | Vitest (unit/integration)                 |
+| `npm run e2e`      | Playwright E2E against local fixtures     |
+| `npm run e2e:install` | Install Playwright Chromium            |
 | `npm run typecheck`| TypeScript `--noEmit` checks              |
 | `npm run format`   | Prettier write                            |
 | `npm run format:check` | Prettier verify                       |

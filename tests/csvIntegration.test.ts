@@ -22,9 +22,9 @@ describe('CSV flow (order parser -> CSV)', () => {
     const rows = parsed.data as CsvRow[];
 
     expect(rows).toHaveLength(2);
-    expect(rows[0]['Order ID']).toBe('171-2219219-6534702');
+    expect(rows[0]['Order ID']).toBe('111-1111111-1111111');
     expect(rows[0]['Invoice URL']).toContain('/your-orders/invoice/popover');
-    expect(rows[0].Items).toContain('Trycone Foot cream');
+    expect(rows[0].Items).toContain('Test Item');
     expect(rows[1]['Order ID']).toBe('Total (non-cancelled)');
   });
 });

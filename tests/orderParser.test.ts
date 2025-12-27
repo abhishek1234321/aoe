@@ -17,7 +17,7 @@ describe('order parser', () => {
     expect(orders).toHaveLength(1);
 
     const order = orders[0];
-    expect(order.orderId).toBe('171-2219219-6534702');
+    expect(order.orderId).toBe('111-1111111-1111111');
     expect(order.total.amount).toBeCloseTo(522.75);
     expect(order.total.currencySymbol).toBe('₹');
     expect(order.invoiceUrl).toContain('/your-orders/invoice');
@@ -32,7 +32,7 @@ describe('order parser', () => {
     expect(orders.length).toBeGreaterThanOrEqual(2);
 
     const firstOrder = orders[0];
-    expect(firstOrder.orderId).toBe('171-4660761-9136348');
+    expect(firstOrder.orderId).toBe('222-2222222-2222222');
     const hasTrackAction = orders.some((order) =>
       order.shipments.some((shipment) =>
         shipment.actions.some((action) => action.label.toLowerCase().includes('track')),

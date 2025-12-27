@@ -11,6 +11,10 @@ const sharedConfig = {
       '@shared': resolve(root, 'src/shared'),
     },
   },
+  test: {
+    include: ['tests/**/*.test.ts'],
+    exclude: ['tests/e2e/**', '**/node_modules/**'],
+  },
 } as const;
 
 export default defineConfig(({ mode }) => {

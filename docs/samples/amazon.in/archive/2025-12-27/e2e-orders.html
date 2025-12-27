@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Amazon Orders E2E Sample</title>
+  </head>
+  <body>
+    <div class="your-orders-content-container__content js-yo-main-content">
+      <div class="a-row a-spacing-base">
+        <form class="js-time-filter-form">
+          <label for="time-filter" class="time-filter__label">
+            <span class="num-orders">2 orders</span> placed in
+          </label>
+          <select name="timeFilter" id="time-filter">
+            <option value="last30">last 30 days</option>
+            <option value="months-3" selected>past 3 months</option>
+            <option value="year-2025">2025</option>
+          </select>
+        </form>
+      </div>
+
+      <div class="order-card js-order-card">
+        <div class="a-box a-color-offset-background order-header">
+          <div class="a-box-inner">
+            <div class="a-fixed-right-grid">
+              <div class="a-fixed-right-grid-inner">
+                <h5 class="a-text-normal">
+                  <ul class="order-header__header-list" role="presentation">
+                    <div class="a-fixed-right-grid-col a-col-left">
+                      <div class="a-row a-size-mini">
+                        <li class="order-header__header-list-item" role="presentation">
+                          <div class="a-row a-size-mini">
+                            <span class="a-color-secondary a-text-caps">Order placed</span>
+                          </div>
+                          <div class="a-row">
+                            <span class="a-size-base a-color-secondary aok-break-word">25 January 2025</span>
+                          </div>
+                        </li>
+                      </div>
+                      <div class="a-row a-size-mini">
+                        <li class="order-header__header-list-item" role="presentation">
+                          <div class="a-row a-size-mini">
+                            <span class="a-color-secondary a-text-caps">Total</span>
+                          </div>
+                          <div class="a-row">
+                            <span class="a-size-base a-color-secondary aok-break-word">₹522.75</span>
+                          </div>
+                        </li>
+                      </div>
+                    </div>
+                    <div class="a-text-right a-fixed-right-grid-col a-col-right">
+                      <div class="a-row a-size-mini">
+                        <li class="order-header__header-list-item" role="presentation">
+                          <div class="yohtmlc-order-id">
+                            <span class="a-color-secondary a-text-caps">Order #</span>
+                            <span class="a-color-secondary" dir="ltr">111-1111111-1111111</span>
+                          </div>
+                        </li>
+                      </div>
+                      <div class="a-row">
+                        <li class="order-header__header-list-item yohtmlc-order-level-connections" role="presentation">
+                          <a class="a-link-normal" href="/your-orders/order-details?orderID=111-1111111-1111111">
+                            View order details
+                          </a>
+                          <i class="a-icon a-icon-text-separator" role="img"></i>
+                          <a class="a-link-normal" href="/your-orders/invoice/popover?orderId=111-1111111-1111111">
+                            Invoice
+                          </a>
+                        </li>
+                      </div>
+                    </div>
+                  </ul>
+                </h5>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="a-box delivery-box">
+          <div class="a-box-inner">
+            <div class="yohtmlc-shipment-status-primaryText">
+              <h3>
+                <span class="a-size-medium delivery-box__primary-text">Delivered Jan 28</span>
+              </h3>
+            </div>
+            <div class="product-image">
+              <a class="a-link-normal" href="/dp/TESTASIN01">
+                <img alt="Test Item" src="https://example.com/item.jpg" />
+              </a>
+            </div>
+            <div class="yohtmlc-item-level-connections">
+              <a class="a-link-normal" href="/gp/your-account/ship-track?orderId=111-1111111-1111111">
+                Track package
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
