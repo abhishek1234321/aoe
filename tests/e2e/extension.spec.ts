@@ -8,7 +8,8 @@ const port = Number(process.env.E2E_PORT ?? 4173);
 const baseUrl = `http://localhost:${port}`;
 const fixtureDir = path.resolve(process.cwd(), 'docs', 'samples', 'amazon.in');
 const ordersFixture = path.join(fixtureDir, 'e2e-orders.html');
-const headless = process.env.E2E_HEADLESS === '1';
+const headlessRequested = process.env.E2E_HEADLESS === '1';
+const headless = false;
 const slowMo = Number(process.env.E2E_SLOWMO ?? 0) || undefined;
 const recordVideo = process.env.E2E_VIDEO === '1';
 const traceEnabled = process.env.E2E_TRACE !== '0';
@@ -60,6 +61,7 @@ const ensurePopupReady = async (popupPage: Page, orderPage: Page) => {
 };
 
 test.describe('extension e2e (fixtures)', () => {
+  test.skip(headlessRequested, 'Chromium extensions require headed mode.');
   let server: Awaited<ReturnType<typeof startFixtureServer>>;
   let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>>;
   let extensionId: string;

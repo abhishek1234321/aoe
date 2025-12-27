@@ -30,7 +30,7 @@ Work-in-progress browser extension that scrapes Amazon.in order history to expor
 | `npm run security:audit` | npm audit (high/critical)          |
 
 E2E environment toggles:
-- `E2E_HEADLESS=1` to run without a visible browser window.
+- Headless mode is not supported for extension tests (Chromium extensions require headed mode).
 - `E2E_SLOWMO=250` to slow browser actions for debugging.
 - `E2E_VIDEO=1` to record videos into `test-results/videos`.
 - `E2E_TRACE=0` to disable trace capture (enabled by default).

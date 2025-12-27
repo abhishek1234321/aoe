@@ -26,7 +26,7 @@ We run extension E2E against local HTML fixtures (not live Amazon pages).
 1. Install the Playwright browser once: `npm run e2e:install`
 2. Run E2E: `npm run e2e`
 3. Optional debug flags:
-   - `E2E_HEADLESS=1` to run headless
+   - Headless mode is not supported for extension tests (Chromium extensions require headed mode).
    - `E2E_SLOWMO=250` to slow actions
    - `E2E_VIDEO=1` to record videos
    - `E2E_TRACE=0` to disable traces (enabled by default)
