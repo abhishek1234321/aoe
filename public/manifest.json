@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Amazon Order Extractor",
-  "description": "Export amazon.in order history into CSV files and download matching invoices.",
+  "description": "Export Amazon order history into CSV files and download matching invoices.",
   "version": "0.1.0",
   "action": {
     "default_icon": {
@@ -20,14 +20,31 @@
   },
   "permissions": ["activeTab", "storage"],
   "optional_permissions": ["downloads", "notifications"],
-  "host_permissions": ["https://www.amazon.in/*"],
+  "host_permissions": [
+    "https://www.amazon.in/*",
+    "https://www.amazon.com/*",
+    "https://www.amazon.ca/*",
+    "https://www.amazon.co.uk/*"
+  ],
   "content_scripts": [
     {
       "matches": [
         "https://www.amazon.in/gp/css/order-history*",
         "https://www.amazon.in/gp/your-account/order-history*",
         "https://www.amazon.in/*/order-history*",
-        "https://www.amazon.in/your-orders*"
+        "https://www.amazon.in/your-orders*",
+        "https://www.amazon.com/gp/css/order-history*",
+        "https://www.amazon.com/gp/your-account/order-history*",
+        "https://www.amazon.com/*/order-history*",
+        "https://www.amazon.com/your-orders*",
+        "https://www.amazon.ca/gp/css/order-history*",
+        "https://www.amazon.ca/gp/your-account/order-history*",
+        "https://www.amazon.ca/*/order-history*",
+        "https://www.amazon.ca/your-orders*",
+        "https://www.amazon.co.uk/gp/css/order-history*",
+        "https://www.amazon.co.uk/gp/your-account/order-history*",
+        "https://www.amazon.co.uk/*/order-history*",
+        "https://www.amazon.co.uk/your-orders*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
@@ -43,7 +60,12 @@
   "web_accessible_resources": [
     {
       "resources": ["assets/*"],
-      "matches": ["https://www.amazon.in/*"]
+      "matches": [
+        "https://www.amazon.in/*",
+        "https://www.amazon.com/*",
+        "https://www.amazon.ca/*",
+        "https://www.amazon.co.uk/*"
+      ]
     }
   ]
 }

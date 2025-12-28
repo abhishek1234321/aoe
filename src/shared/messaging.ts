@@ -35,6 +35,9 @@ export type RuntimeMessage =
   | {
       type: 'SET_SETTINGS';
       payload: { notifyOnCompletion?: boolean };
+    }
+  | {
+      type: 'TEST_NOTIFICATION';
     };
 
 export interface RuntimeResponse<T = unknown> {

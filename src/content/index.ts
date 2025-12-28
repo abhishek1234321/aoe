@@ -75,6 +75,21 @@ const getNextPageLink = (): HTMLAnchorElement | null => {
   return lastItem.querySelector<HTMLAnchorElement>('a') ?? null;
 };
 
+const getOrdersInRange = (doc: Document): number | undefined => {
+  const label = doc.querySelector('.time-filter__label .num-orders')?.textContent?.trim();
+  const fallback = doc.querySelector('.num-orders')?.textContent?.trim();
+  const text = label || fallback;
+  if (!text) {
+    return undefined;
+  }
+  const match = text.match(/[\d,]+/);
+  if (!match) {
+    return undefined;
+  }
+  const count = Number(match[0].replace(/,/g, ''));
+  return Number.isFinite(count) ? count : undefined;
+};
+
 const saveAutoContinuePayload = (payload: ScraperStartPayload | null) => {
   if (payload) {
     sessionStorage.setItem(AUTO_SCRAPE_STORAGE_KEY, JSON.stringify(payload));
@@ -156,12 +171,14 @@ const executeScrape = async (payload: ScraperStartPayload) => {
 
     debugLog('Parsing orders for payload', payload);
     const orders = parseOrdersFromDocument(document);
+    const ordersInRange = getOrdersInRange(document);
     const invoiceCount = orders.filter((order) => Boolean(order.invoiceUrl)).length;
     const nextLink = getNextPageLink();
 
     debugLog('Parsed orders', { count: orders.length, invoiceCount, hasNext: Boolean(nextLink) });
     const response = await dispatchProgress({
       orders,
+      ordersInRange,
       invoicesQueued: invoiceCount,
       hasMorePages: Boolean(nextLink),
       message: `Collected ${orders.length} orders from current page.`,

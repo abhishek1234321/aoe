@@ -13,6 +13,16 @@
 - Security baseline: CI lint/typecheck/tests, CodeQL + Trivy scans, Dependabot, npm audit (high/critical).
 - Fixture archive added for Amazon.in snapshots; fixtures are sanitized and versioned by date.
 
+## Active Fixes (QA)
+- [x] Header spacing/padding for the run cap line.
+- [x] Replace “scrape” wording in user-facing text (use “export”).
+- [x] Improve popup height/scroll area (sticky header/footer + body space).
+- [x] Orders progress should use total orders in range when available (avoid default 0/1000).
+- [x] Parse order count from the time-filter label (`.num-orders`) as a hint.
+- [x] Back button should be icon-only.
+- [x] Hide “Download invoices from last export” unless invoices were requested.
+- [x] Confirm/document service worker usage and purpose (MV3 background worker in `src/background/index.ts`).
+
 ## Next Up
 1. Improve scraping UX (avoid user disruption while paging; move pagination to a background/hidden tab). ✅
 2. Harden time-filter handling and fallbacks (surface errors, handle missing dropdowns gracefully). ✅

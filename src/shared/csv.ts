@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { formatCurrency } from './format';
 import type { OrderSummary } from './types';
 
 const CSV_HEADERS = [
@@ -49,13 +50,72 @@ export const ordersToCsv = (orders: OrderSummary[]) => {
     'Order ID': 'Total (non-cancelled)',
     'Order Date': '',
     'Buyer Name': '',
-    'Total Amount': totalSpend.toFixed(2),
+    'Total Amount': formatCurrency(totalSpend, currency),
     Currency: currency,
     'Item Count': '',
     'Shipment Status': '',
     'Invoice URL': '',
     Items: '',
   });
+
+  const buyerGroups = new Map<string, OrderSummary[]>();
+  orders.forEach((order) => {
+    const label = order.buyerName?.trim() || 'Unknown buyer';
+    const existing = buyerGroups.get(label);
+    if (existing) {
+      existing.push(order);
+    } else {
+      buyerGroups.set(label, [order]);
+    }
+  });
+
+  if (buyerGroups.size > 1) {
+    const emptyRow: CsvRow = {
+      'Order ID': '',
+      'Order Date': '',
+      'Buyer Name': '',
+      'Total Amount': '',
+      Currency: '',
+      'Item Count': '',
+      'Shipment Status': '',
+      'Invoice URL': '',
+      Items: '',
+    };
+    rows.push(emptyRow);
+    rows.push({
+      'Order ID': 'Buyer summary',
+      'Order Date': '',
+      'Buyer Name': '',
+      'Total Amount': '',
+      Currency: '',
+      'Item Count': '',
+      'Shipment Status': '',
+      'Invoice URL': '',
+      Items: '',
+    });
+    buyerGroups.forEach((groupOrders, buyerName) => {
+      const groupNonCancelled = groupOrders.filter(
+        (order) => !((order.status ?? '').toLowerCase().includes('cancel') || (order.status ?? '').toLowerCase().includes('return')),
+      );
+      const groupSpend = groupNonCancelled.reduce((sum, order) => {
+        const amt = order.total.amount ?? 0;
+        return sum + (Number.isFinite(amt) ? amt : 0);
+      }, 0);
+      const groupCurrency = groupNonCancelled.find((o) => o.total.currencySymbol)?.total.currencySymbol ?? '';
+      const avg = groupNonCancelled.length ? groupSpend / groupNonCancelled.length : 0;
+      rows.push({
+        'Order ID': 'Buyer',
+        'Order Date': '',
+        'Buyer Name': buyerName,
+        'Total Amount': formatCurrency(groupSpend, groupCurrency),
+        Currency: groupCurrency,
+        'Item Count': String(groupOrders.length),
+        'Shipment Status': `Non-cancelled: ${groupNonCancelled.length}`,
+        'Invoice URL': '',
+        Items: groupNonCancelled.length ? `Avg order: ${formatCurrency(avg, groupCurrency)}` : 'Avg order: N/A',
+      });
+    });
+  }
 
   return Papa.unparse(rows, { columns: CSV_HEADERS });
 };

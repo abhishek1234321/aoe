@@ -1,6 +1,6 @@
 import browser from 'webextension-polyfill';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { AMAZON_HOST, AMAZON_ORDER_HISTORY_URLS, MAX_ORDERS_PER_RUN, SUPPORT_EMAIL } from '@shared/constants';
+import { DEFAULT_AMAZON_HOST, MAX_ORDERS_PER_RUN, SUPPORT_EMAIL, getAmazonHostForUrl, getOrderHistoryUrl } from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { ordersToCsv } from '@shared/csv';
 import type { OrderSummary, ScrapeSessionSnapshot } from '@shared/types';
@@ -66,8 +66,11 @@ const App = () => {
   const [version] = useState(() => browser.runtime.getManifest().version ?? '');
   const [notifyOnCompletion, setNotifyOnCompletion] = useState<boolean>(false);
   const [diagnosticsNotice, setDiagnosticsNotice] = useState<string | null>(null);
+  const [notificationTestStatus, setNotificationTestStatus] = useState<string | null>(null);
   const supportEmail = SUPPORT_EMAIL.trim();
   const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
+  const [activeUrl, setActiveUrl] = useState<string | null>(null);
+  const showNotificationTest = import.meta.env.DEV;
 
   useEffect(() => {
     void refresh();
@@ -75,7 +78,7 @@ const App = () => {
 
   useEffect(() => {
     const fetchContext = async () => {
-      const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot; isSupported: boolean }>({
+      const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot; isSupported: boolean; url?: string; amazonHost?: string }>({
         type: 'GET_CONTEXT',
       });
       if (response.success) {
@@ -83,6 +86,7 @@ const App = () => {
           setSession(response.data.state);
         }
         setIsOnOrderPage(Boolean(response.data?.isSupported));
+        setActiveUrl(response.data?.url ?? null);
       }
     };
 
@@ -135,6 +139,7 @@ const App = () => {
           message: session.message,
           errorMessage: session.errorMessage,
           ordersCollected: session.ordersCollected,
+          ordersInRange: session.ordersInRange,
           ordersLimit: session.ordersLimit,
           ordersCount: session.orders?.length ?? 0,
           invoicesQueued: session.invoicesQueued,
@@ -155,7 +160,7 @@ const App = () => {
     return {
       generatedAt: new Date().toISOString(),
       extensionVersion: version,
-      amazonHost: AMAZON_HOST,
+      amazonHost: session?.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST,
       locale: navigator.language,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       userAgent: navigator.userAgent,
@@ -203,7 +208,7 @@ const App = () => {
     });
 
     if (!response.success) {
-      setError(response.error ?? 'Failed to start scraper');
+      setError(response.error ?? 'Failed to start export');
     } else if (response.data?.state) {
       setSession(response.data.state);
       setError(null);
@@ -229,6 +234,26 @@ const App = () => {
       setSession(response.data.state);
       setError(null);
     }
+    setLoading(false);
+  };
+
+  const handleChooseAnotherTimeframe = async () => {
+    if (loading) {
+      return;
+    }
+    setLoading(true);
+    setView('main');
+    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+      type: 'RESET_SCRAPE',
+    });
+    if (!response.success) {
+      setError(response.error ?? 'Failed to reset state');
+    } else if (response.data?.state) {
+      setSession(response.data.state);
+      setError(null);
+    }
+    setSelectedFilter('');
+    setShowFilterOverride(true);
     setLoading(false);
   };
 
@@ -276,17 +301,19 @@ const App = () => {
       return 'Initializing…';
     }
     if (session.phase === 'idle') {
-      return 'Ready to start scraping.';
+      return 'Ready to export orders.';
     }
     if (session.phase === 'running') {
-      return `Running — collected ${session.ordersCollected}/${session.ordersLimit}`;
+      const total = session.ordersInRange ?? session.ordersLimit;
+      const capSuffix = session.ordersInRange && session.ordersInRange > session.ordersLimit ? ` (cap ${session.ordersLimit})` : '';
+      return `Exporting — collected ${session.ordersCollected}/${total}${capSuffix}`;
     }
     if (session.phase === 'completed') {
       const count = session.orders?.length ?? session.ordersCollected ?? 0;
       if (count === 0) {
         return 'No orders found for the selected range.';
       }
-      return `Completed — ${count} orders exported`;
+      return `Completed — ${count} orders ready`;
     }
     if (session.phase === 'error') {
       return 'Encountered an error';
@@ -315,25 +342,45 @@ const App = () => {
     ].join('\n');
     return `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }, [supportEmail, version, session?.runId, session?.phase, activeError]);
-  const showReset =
-    Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
   const canDownload = Boolean(session?.orders?.length && session?.phase === 'completed');
   const canDownloadInvoicesOnly = Boolean(
     session?.orders?.length &&
-    session?.phase === 'completed' &&
-    session?.downloadInvoicesRequested &&
-    (session?.invoicesDownloaded ?? 0) === 0,
+      session?.phase === 'completed' &&
+      session?.downloadInvoicesRequested &&
+      (session?.invoicesQueued ?? 0) > 0 &&
+      (session?.invoicesDownloaded ?? 0) === 0,
   );
   const showCancelInvoices = Boolean(session?.invoiceDownloadsStarted && (session?.invoicesDownloaded ?? 0) < (session?.invoicesQueued ?? 0));
   const showCancelScrape = session?.phase === 'running';
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
   const isEmptyResult = session?.phase === 'completed' && (session?.orders?.length ?? 0) === 0;
+  const showReset =
+    Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
+  const showResetButton = showReset && !(isEmptyResult && !showFilterOverride);
+  const showProgressDetails = Boolean(session?.phase && session.phase !== 'idle');
+  const ordersLimit = session?.ordersLimit ?? MAX_ORDERS_PER_RUN;
+  const ordersInRange = session?.ordersInRange;
+  const ordersCollectedDisplay =
+    session?.phase === 'completed' ? session?.orders?.length ?? session?.ordersCollected ?? 0 : session?.ordersCollected ?? 0;
+  const ordersTotalDisplay = ordersInRange ?? ordersLimit;
+  const ordersCapSuffix = ordersInRange && ordersInRange > ordersLimit ? ` (cap ${ordersLimit})` : '';
+  const ordersProgressTotal = Math.max(
+    Math.min(typeof ordersTotalDisplay === 'number' ? ordersTotalDisplay : ordersLimit, ordersLimit),
+    1,
+  );
+  const invoiceErrorHint =
+    session?.invoiceErrors && session.invoiceErrors > 0
+      ? session.lastInvoiceError ??
+        'Some invoices failed to download. Check your browser download settings and try again.'
+      : null;
   const canRetryScrape = Boolean(
     session?.phase === 'error' &&
       session?.errorMessage &&
       (session.errorMessage.includes('Scrape tab unavailable') ||
-        session.errorMessage.includes('Timed out waiting for scrape tab')),
+        session.errorMessage.includes('Helper tab unavailable') ||
+        session.errorMessage.includes('Timed out waiting for scrape tab') ||
+        session.errorMessage.includes('Timed out waiting for helper tab')),
   );
 
   const showFilterForm = !isEmptyResult || showFilterOverride;
@@ -344,6 +391,25 @@ const App = () => {
       return granted;
     } catch {
       return false;
+    }
+  };
+
+  const handleTestNotification = async () => {
+    setNotificationTestStatus(null);
+    const granted = await requestPermission('notifications');
+    if (!granted) {
+      setNotificationTestStatus('Notifications permission not granted.');
+      return;
+    }
+    const response = await sendRuntimeMessage<{ notificationId?: string }>({ type: 'TEST_NOTIFICATION' });
+    if (response.success) {
+      setNotificationTestStatus(
+        'Test notification sent. If you do not see it, check OS/browser notification settings.',
+      );
+      console.info('[AOE] Test notification sent', response.data);
+    } else {
+      setNotificationTestStatus(response.error ?? 'Failed to send test notification.');
+      console.info('[AOE] Test notification failed', response.error);
     }
   };
   const overallHighlights = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
@@ -423,7 +489,7 @@ const App = () => {
   }, [availableFilters]);
 
   if (isOnOrderPage === false) {
-    const ordersUrl = AMAZON_ORDER_HISTORY_URLS[0];
+    const ordersUrl = getOrderHistoryUrl(activeUrl ?? session?.amazonHost ?? DEFAULT_AMAZON_HOST);
     return (
       <div className="popup-container">
         <header className="popup-header sticky-header">
@@ -438,9 +504,9 @@ const App = () => {
           <div className="hero-body">
             <img src={heroOrders} alt="Orders illustration" className="illustration" />
             <div>
-              <p className="hero-title">Head to your Amazon.in order history</p>
+              <p className="hero-title">Head to your Amazon order history</p>
               <p className="hero-copy">
-                Open the Orders page, then click “Start scrape” to export your orders to CSV.
+                Open the Orders page, then click <strong>Start export</strong> to save your orders as a CSV.
               </p>
             </div>
           </div>
@@ -453,6 +519,11 @@ const App = () => {
           <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
           <div className="footer-links">
             {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
+            {supportMailto ? (
+              <a href={supportMailto} target="_blank" rel="noreferrer" className="footer-link">
+                Email support
+              </a>
+            ) : null}
             <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
               Send feedback
             </a>
@@ -474,8 +545,10 @@ const App = () => {
               onClick={() => {
                 setView('main');
               }}
+              aria-label="Back"
+              title="Back"
             >
-              ← Back
+              ←
             </button>
           ) : (
             <span />
@@ -541,7 +614,7 @@ const App = () => {
                   }}
                   disabled={isBlockedPage}
                 />
-                <span>Download invoices after scrape</span>
+                <span>Download invoices after export</span>
               </label>
 
               <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -566,15 +639,26 @@ const App = () => {
                   }}
                   disabled={isBlockedPage}
                 />
-                <span>Notify when scrape completes</span>
+                <span>Notify when export completes</span>
               </label>
+
+              {showNotificationTest ? (
+                <div style={{ marginTop: '8px' }}>
+                  <button type="button" className="secondary-button" onClick={handleTestNotification}>
+                    Send test notification
+                  </button>
+                  {notificationTestStatus ? (
+                    <div className="helper-text">{notificationTestStatus}</div>
+                  ) : null}
+                </div>
+              ) : null}
 
             <button
               type="submit"
               disabled={!canStart || !selectedFilter}
               className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
             >
-              {isRunning ? 'Scrape in progress…' : loading ? 'Working…' : 'Start scrape'}
+              {isRunning ? 'Export in progress…' : loading ? 'Working…' : 'Start export'}
             </button>
           </form>
           )}
@@ -622,11 +706,11 @@ const App = () => {
               disabled={loading}
               style={{ marginTop: '8px' }}
             >
-              Download invoices for last scrape
+              Download invoices from last export
             </button>
           )}
 
-          {showReset && (
+          {showResetButton && (
             <button
               type="button"
               onClick={handleReset}
@@ -652,7 +736,7 @@ const App = () => {
               className={`secondary-button ${loading ? 'disabled' : ''}`}
               style={{ marginTop: '8px' }}
             >
-              Stop scrape
+              Stop export
             </button>
           )}
         </section>
@@ -680,61 +764,71 @@ const App = () => {
                 </div>
               </div>
             ) : null}
-            <div className="highlight-card">
-              <div className="highlight-row">
-                <div>
-                  <div className="highlight-label">Total orders</div>
-                  <div className="highlight-value">{summary.totalOrders}</div>
-                </div>
-                <div>
-                  <div className="highlight-label">Non-cancelled</div>
-                  <div className="highlight-value">{summary.nonCancelledOrders}</div>
-                </div>
+            {summary.totalOrders === 0 ? (
+              <div className="highlight-card">
+                <div className="highlight-label">No orders found for this buyer in the selected range.</div>
               </div>
-              <div className="highlight-row">
-                <div>
-                  <div className="highlight-label">Total spend</div>
-                  <div className="highlight-value">{summary.formattedSpend || '—'}</div>
-                </div>
-                <div>
-                  <div className="highlight-label">Avg order</div>
-                  <div className="highlight-value">{summary.formattedAvg || '—'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="highlight-card">
-              <div className="highlight-label">Busiest day</div>
-              <div className="highlight-value">{summary.busiestDay ?? '—'}</div>
-              <div className="highlight-label" style={{ marginTop: '8px' }}>
-                Top period ({summary.topPeriod ? 'based on filter' : '—'})
-              </div>
-              <div className="highlight-value">{summary.topPeriod ? `${summary.topPeriod.label} (${summary.topPeriod.count})` : '—'}</div>
-            </div>
-
-            <div className="highlight-card">
-              <div className="highlight-label">Top items</div>
-              {summary.topItems.length ? (
-                summary.topItems.map((item) => (
-                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{item.label}</span>
-                    <span className="highlight-label">x{item.count}</span>
+            ) : (
+              <>
+                <div className="highlight-card">
+                  <div className="highlight-row">
+                    <div>
+                      <div className="highlight-label">Total orders</div>
+                      <div className="highlight-value">{summary.totalOrders}</div>
+                    </div>
+                    <div>
+                      <div className="highlight-label">Non-cancelled</div>
+                      <div className="highlight-value">{summary.nonCancelledOrders}</div>
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="highlight-label">No items yet</div>
-              )}
-              <div className="highlight-row" style={{ marginTop: '8px' }}>
-                <div>
-                  <div className="highlight-label">Unique items</div>
-                  <div className="highlight-value">{summary.uniqueItems}</div>
+                  <div className="highlight-row">
+                    <div>
+                      <div className="highlight-label">Total spend</div>
+                      <div className="highlight-value">{summary.formattedSpend || '—'}</div>
+                    </div>
+                    <div>
+                      <div className="highlight-label">Avg order</div>
+                      <div className="highlight-value">{summary.formattedAvg || '—'}</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="highlight-label">Repeated items</div>
-                  <div className="highlight-value">{summary.repeatItems}</div>
+
+                <div className="highlight-card">
+                  <div className="highlight-label">Busiest day</div>
+                  <div className="highlight-value">{summary.busiestDay ?? '—'}</div>
+                  <div className="highlight-label" style={{ marginTop: '8px' }}>
+                    Top period ({summary.topPeriod ? 'based on filter' : '—'})
+                  </div>
+                  <div className="highlight-value">
+                    {summary.topPeriod ? `${summary.topPeriod.label} (${summary.topPeriod.count})` : '—'}
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="highlight-card">
+                  <div className="highlight-label">Top items</div>
+                  {summary.topItems.length ? (
+                    summary.topItems.map((item) => (
+                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{item.label}</span>
+                        <span className="highlight-label">x{item.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="highlight-label">No items yet</div>
+                  )}
+                  <div className="highlight-row" style={{ marginTop: '8px' }}>
+                    <div>
+                      <div className="highlight-label">Unique items</div>
+                      <div className="highlight-value">{summary.uniqueItems}</div>
+                    </div>
+                    <div>
+                      <div className="highlight-label">Repeated items</div>
+                      <div className="highlight-value">{summary.repeatItems}</div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         ) : isEmptyResult && !showFilterForm ? (
           <section className="status-block">
@@ -753,10 +847,7 @@ const App = () => {
                 className="primary-button"
                 disabled={loading}
                 style={{ marginTop: '12px' }}
-                onClick={() => {
-                  setSelectedFilter('');
-                  setShowFilterOverride(true);
-                }}
+                onClick={handleChooseAnotherTimeframe}
               >
                 Choose another timeframe
               </button>
@@ -764,52 +855,51 @@ const App = () => {
           </section>
         ) : (
           <section className="status-block">
-            {isBlockedPage && <p className="status-warning">Please open the Amazon.in order history page before starting a scrape.</p>}
+            {isBlockedPage && <p className="status-warning">Please open the Amazon order history page before starting an export.</p>}
             <p style={{ margin: '0 0 8px' }}>
               <strong>Status:</strong> {statusMessage}
             </p>
           <p style={{ margin: 0 }}>
             Filtering: {session?.timeFilterLabel ?? session?.yearFilter ?? 'All'}
           </p>
-          <div className="progress-container" style={{ marginTop: '8px' }}>
-            <div className="progress-label">
-              Orders:{' '}
-              {session?.phase === 'completed'
-                ? `${session?.orders?.length ?? 0}/${session?.orders?.length ?? 0}`
-                : `${session?.ordersCollected ?? 0} (cap ${session?.ordersLimit ?? MAX_ORDERS_PER_RUN})`}
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-bar-fill"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    session?.phase === 'completed'
-                      ? 100
-                      : ((session?.ordersCollected ?? 0) / Math.max(session?.ordersLimit ?? MAX_ORDERS_PER_RUN, 1)) * 100,
-                  ).toFixed(1)}%`,
-                }}
-              />
-            </div>
-          </div>
-          <dl className="definition-list">
-            <dt>Orders collected:</dt>
-            <dd>
-              {session?.phase === 'completed'
-                ? `${session?.orders?.length ?? 0}/${session?.orders?.length ?? 0}`
-                : `${session?.ordersCollected ?? 0}/${session?.ordersLimit ?? MAX_ORDERS_PER_RUN}`}
-            </dd>
-            <dt>Invoices queued:</dt>
-            <dd>{session?.invoicesQueued ?? 0}</dd>
-            <dt>Invoices downloaded:</dt>
-            <dd>{session?.invoicesDownloaded ?? 0}</dd>
-            <dt>Invoice errors:</dt>
-            <dd>{session?.invoiceErrors ?? 0}</dd>
-            <dt>Started:</dt>
-            <dd>{formatTimestamp(session?.startedAt)}</dd>
-            <dt>Completed:</dt>
-            <dd>{formatTimestamp(session?.completedAt)}</dd>
-          </dl>
+          {showProgressDetails ? (
+            <>
+              <div className="progress-container" style={{ marginTop: '8px' }}>
+                <div className="progress-label">
+                  Orders: {ordersCollectedDisplay}/{ordersTotalDisplay}
+                  {ordersCapSuffix}
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        ((ordersCollectedDisplay ?? 0) / ordersProgressTotal) * 100,
+                      ).toFixed(1)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <dl className="definition-list">
+                <dt>Orders collected:</dt>
+                <dd>
+                  {ordersCollectedDisplay}/{ordersTotalDisplay}
+                  {ordersCapSuffix}
+                </dd>
+                <dt>Invoices queued:</dt>
+                <dd>{session?.invoicesQueued ?? 0}</dd>
+                <dt>Invoices downloaded:</dt>
+                <dd>{session?.invoicesDownloaded ?? 0}</dd>
+                <dt>Invoice errors:</dt>
+                <dd>{session?.invoiceErrors ?? 0}</dd>
+                <dt>Started:</dt>
+                <dd>{formatTimestamp(session?.startedAt)}</dd>
+                <dt>Completed:</dt>
+                <dd>{formatTimestamp(session?.completedAt)}</dd>
+              </dl>
+            </>
+          ) : null}
           {activeError ? <p className="error-text">{activeError}</p> : session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>}
           {showDiagnostics && (
             <div className="diagnostics-card">
@@ -835,7 +925,7 @@ const App = () => {
           )}
           {canRetryScrape && (
             <div className="retry-hint">
-              <strong>Scrape tab failed.</strong> Make sure the Amazon Orders page is open and you are signed in,
+              <strong>Helper tab failed.</strong> Make sure the Amazon Orders page is open and you are signed in,
               then retry.
             </div>
           )}
@@ -856,7 +946,7 @@ const App = () => {
                   },
                 });
                 if (!response.success) {
-                  setError(response.error ?? 'Failed to retry scrape');
+                  setError(response.error ?? 'Failed to retry export');
                 } else if (response.data?.state) {
                   setSession(response.data.state);
                   setError(null);
@@ -865,7 +955,7 @@ const App = () => {
               }}
               disabled={loading}
             >
-              Retry scrape
+              Retry export
             </button>
           )}
           {canDownload && (
@@ -914,9 +1004,9 @@ const App = () => {
               Cancel invoice downloads
             </button>
           )}
-          {session?.invoiceErrors && session.invoiceErrors > 0 && session.invoiceDownloadsStarted ? (
+          {invoiceErrorHint ? (
             <p className="error-text" style={{ marginTop: '8px' }}>
-              Some invoices failed to download. Enable multiple downloads in your browser and try again.
+              {invoiceErrorHint}
             </p>
           ) : null}
         </section>
@@ -927,6 +1017,11 @@ const App = () => {
       <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
       <div className="footer-links">
         {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
+        {supportMailto ? (
+          <a href={supportMailto} target="_blank" rel="noreferrer" className="footer-link">
+            Email support
+          </a>
+        ) : null}
         <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
           Send feedback
         </a>

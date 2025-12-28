@@ -22,9 +22,9 @@ const ITEM_BOX_SELECTOR = '.item-box';
 const ITEM_TITLE_SELECTOR = '.yohtmlc-product-title a, .a-link-normal:not(.a-popover-trigger)';
 const ITEM_IMAGE_SELECTOR = 'img';
 const PRODUCT_IMAGE_FALLBACK_SELECTOR = '.product-image';
-const DATE_LABEL = 'order placed';
+const DATE_LABELS = ['order placed', 'ordered on'];
 const TOTAL_LABEL = 'total';
-const DATE_FORMATS = ['d MMMM yyyy', 'dd MMMM yyyy'];
+const DATE_FORMATS = ['d MMMM yyyy', 'dd MMMM yyyy', 'MMMM d, yyyy', 'MMMM dd, yyyy', 'MMM d, yyyy', 'MMM dd, yyyy'];
 const ASIN_REGEX = /\/dp\/([A-Z0-9]{10})/i;
 
 export const parseOrdersFromDocument = (doc: Document): OrderSummary[] => {
@@ -42,7 +42,7 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
 
   const totalRaw = getLabeledValue(card, TOTAL_LABEL);
   const total = normalizeCurrency(totalRaw);
-  const orderDateText = getLabeledValue(card, DATE_LABEL);
+  const orderDateText = getLabeledValue(card, DATE_LABELS);
   const orderDateISO = normalizeOrderDate(orderDateText);
   const buyerName = getTrimmedText(card.querySelector(BUYER_NAME_SELECTOR));
   const invoiceUrl = extractInvoiceUrl(card);
@@ -64,12 +64,14 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
   };
 };
 
-const getLabeledValue = (card: Element, label: string): string | null => {
-  const labelLower = label.toLowerCase();
+const getLabeledValue = (card: Element, labels: string | string[]): string | null => {
+  const labelSet = Array.isArray(labels)
+    ? new Set(labels.map((label) => label.toLowerCase()))
+    : new Set([labels.toLowerCase()]);
   const items = card.querySelectorAll(HEADER_ITEM_SELECTOR);
   for (const item of Array.from(items)) {
     const labelText = getTrimmedText(item.querySelector(LABEL_TEXT_SELECTOR))?.toLowerCase();
-    if (labelText === labelLower) {
+    if (labelText && labelSet.has(labelText)) {
       const valueText =
         getTrimmedText(item.querySelector(LABEL_VALUE_SELECTOR)) ||
         getTrimmedText(item);

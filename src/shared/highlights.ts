@@ -1,4 +1,4 @@
-import { format as formatDate, getISOWeek } from 'date-fns';
+import { getISOWeek } from 'date-fns';
 import { formatCurrency } from './format';
 import type { OrderSummary } from './types';
 
@@ -29,12 +29,32 @@ export const computeHighlights = (orders: OrderSummary[], timeFilterValue?: stri
   }, 0);
   const currency = safeOrders.find((o) => o.total.currencySymbol)?.total.currencySymbol ?? '';
   const avgOrderValue = safeOrders.length ? totalSpend / safeOrders.length : 0;
+  const hasSpendData = safeOrders.length > 0;
+
+  const parseLocalIsoDate = (value?: string) => {
+    if (!value) return null;
+    const parts = value.split('-').map((part) => Number(part));
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+      return null;
+    }
+    const [year, month, day] = parts;
+    return new Date(year, month - 1, day);
+  };
 
   const getDate = (order: OrderSummary) => {
-    if (order.orderDateISO) return new Date(order.orderDateISO);
-    if (order.orderDateText) return new Date(order.orderDateText);
+    if (order.orderDateISO) {
+      return parseLocalIsoDate(order.orderDateISO) ?? new Date(order.orderDateISO);
+    }
+    if (order.orderDateText) {
+      return new Date(order.orderDateText);
+    }
     return null;
   };
+
+  const locale = typeof navigator !== 'undefined' ? navigator.languages?.[0] ?? navigator.language : 'en-IN';
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone });
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone });
 
   const dayCounts = new Map<string, number>();
   const periodCounts = new Map<string, number>();
@@ -43,12 +63,12 @@ export const computeHighlights = (orders: OrderSummary[], timeFilterValue?: stri
   safeOrders.forEach((order) => {
     const date = getDate(order);
     if (!date || Number.isNaN(date.getTime())) return;
-    const dayLabel = formatDate(date, 'EEE');
+    const dayLabel = weekdayFormatter.format(date);
     dayCounts.set(dayLabel, (dayCounts.get(dayLabel) ?? 0) + 1);
     if (useMonthly) {
-      const key = formatDate(date, 'yyyy-MM');
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       periodCounts.set(key, (periodCounts.get(key) ?? 0) + 1);
-      periodLabels.set(key, formatDate(date, 'MMM yyyy'));
+      periodLabels.set(key, monthFormatter.format(date));
     } else {
       const week = getISOWeek(date);
       const key = `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
@@ -87,8 +107,8 @@ export const computeHighlights = (orders: OrderSummary[], timeFilterValue?: stri
     totalSpend,
     avgOrderValue,
     currency,
-    formattedSpend: formatCurrency(totalSpend, currency),
-    formattedAvg: formatCurrency(avgOrderValue, currency),
+    formattedSpend: hasSpendData ? formatCurrency(totalSpend, currency) : '',
+    formattedAvg: hasSpendData ? formatCurrency(avgOrderValue, currency) : '',
     busiestDay,
     topPeriod,
     topItems,

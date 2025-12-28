@@ -56,7 +56,7 @@ describe('ordersToCsv', () => {
     expect(rows[0].Items).toBe('Item One | Item Two');
     expect(rows[1]['Order ID']).toBe('ORDER-2');
     expect(rows[2]['Order ID']).toBe('Total (non-cancelled)');
-    expect(rows[2]['Total Amount']).toBe('100.00');
+    expect(rows[2]['Total Amount']).toBe('₹ 100.00');
     expect(rows[2].Currency).toBe('₹');
   });
 });

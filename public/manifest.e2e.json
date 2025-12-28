@@ -20,7 +20,13 @@
   },
   "permissions": ["activeTab", "storage"],
   "optional_permissions": ["downloads", "notifications"],
-  "host_permissions": ["https://www.amazon.in/*", "http://localhost:*/*"],
+  "host_permissions": [
+    "https://www.amazon.in/*",
+    "https://www.amazon.com/*",
+    "https://www.amazon.ca/*",
+    "https://www.amazon.co.uk/*",
+    "http://localhost:*/*"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -28,6 +34,18 @@
         "https://www.amazon.in/gp/your-account/order-history*",
         "https://www.amazon.in/*/order-history*",
         "https://www.amazon.in/your-orders*",
+        "https://www.amazon.com/gp/css/order-history*",
+        "https://www.amazon.com/gp/your-account/order-history*",
+        "https://www.amazon.com/*/order-history*",
+        "https://www.amazon.com/your-orders*",
+        "https://www.amazon.ca/gp/css/order-history*",
+        "https://www.amazon.ca/gp/your-account/order-history*",
+        "https://www.amazon.ca/*/order-history*",
+        "https://www.amazon.ca/your-orders*",
+        "https://www.amazon.co.uk/gp/css/order-history*",
+        "https://www.amazon.co.uk/gp/your-account/order-history*",
+        "https://www.amazon.co.uk/*/order-history*",
+        "https://www.amazon.co.uk/your-orders*",
         "http://localhost:*/*"
       ],
       "js": ["content.js"],
@@ -44,7 +62,13 @@
   "web_accessible_resources": [
     {
       "resources": ["assets/*"],
-      "matches": ["https://www.amazon.in/*", "http://localhost:*/*"]
+      "matches": [
+        "https://www.amazon.in/*",
+        "https://www.amazon.com/*",
+        "https://www.amazon.ca/*",
+        "https://www.amazon.co.uk/*",
+        "http://localhost:*/*"
+      ]
     }
   ]
 }

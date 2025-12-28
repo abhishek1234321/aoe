@@ -4,15 +4,15 @@ import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 import { parseOrdersFromDocument } from '../src/shared/orderParser';
 
-const loadSample = (fileName: string) => {
-  const filePath = path.resolve(__dirname, '..', 'docs', 'samples', 'amazon.in', fileName);
+const loadSample = (locale: string, fileName: string) => {
+  const filePath = path.resolve(__dirname, '..', 'docs', 'samples', locale, fileName);
   const html = readFileSync(filePath, 'utf-8');
   return new JSDOM(html);
 };
 
 describe('order parser', () => {
   it('parses a single order card with expected fields', () => {
-    const dom = loadSample('order-single.html');
+    const dom = loadSample('amazon.in', 'order-single.html');
     const orders = parseOrdersFromDocument(dom.window.document);
     expect(orders).toHaveLength(1);
 
@@ -27,7 +27,7 @@ describe('order parser', () => {
   });
 
   it('parses multiple order cards from the list view', () => {
-    const dom = loadSample('order-list.html');
+    const dom = loadSample('amazon.in', 'order-list.html');
     const orders = parseOrdersFromDocument(dom.window.document);
     expect(orders.length).toBeGreaterThanOrEqual(2);
 
@@ -39,5 +39,29 @@ describe('order parser', () => {
       ),
     );
     expect(hasTrackAction).toBe(true);
+  });
+
+  it('parses amazon.com orders with US date format', () => {
+    const dom = loadSample('amazon.com', 'order-list.html');
+    const orders = parseOrdersFromDocument(dom.window.document);
+    expect(orders.length).toBeGreaterThanOrEqual(2);
+    expect(orders[0].orderDateISO).toBe('2025-06-03');
+    expect(orders[0].total.currencySymbol).toBe('$');
+  });
+
+  it('parses amazon.ca orders with US date format', () => {
+    const dom = loadSample('amazon.ca', 'order-list.html');
+    const orders = parseOrdersFromDocument(dom.window.document);
+    expect(orders.length).toBeGreaterThanOrEqual(2);
+    expect(orders[0].orderDateISO).toBe('2025-06-03');
+    expect(orders[0].total.currencySymbol).toBe('$');
+  });
+
+  it('parses amazon.co.uk orders with UK date format', () => {
+    const dom = loadSample('amazon.co.uk', 'order-list.html');
+    const orders = parseOrdersFromDocument(dom.window.document);
+    expect(orders.length).toBeGreaterThanOrEqual(2);
+    expect(orders[0].orderDateISO).toBe('2025-06-03');
+    expect(orders[0].total.currencySymbol).toBe('£');
   });
 });

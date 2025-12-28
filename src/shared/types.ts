@@ -44,12 +44,15 @@ export interface OrderSummary {
 export interface ScrapeSessionSnapshot {
   phase: ScrapePhase;
   runId?: string;
+  amazonHost?: string;
   downloadInvoicesRequested?: boolean;
   notifiedAt?: number;
+  ordersInRange?: number;
   ordersCollected: number;
   invoicesQueued: number;
   invoicesDownloaded: number;
   invoiceErrors: number;
+  lastInvoiceError?: string;
   invoiceDownloadsStarted?: boolean;
   ordersLimit: number;
   orders: OrderSummary[];
@@ -73,6 +76,7 @@ export interface ScrapeCommandPayload {
 }
 
 export interface ScrapeProgressPayload {
+  ordersInRange?: number;
   ordersCollected?: number;
   invoicesQueued?: number;
   invoicesDownloaded?: number;
@@ -87,10 +91,13 @@ export interface ScrapeProgressPayload {
 
 export const createEmptySession = (): ScrapeSessionSnapshot => ({
   phase: 'idle',
+  amazonHost: undefined,
+  ordersInRange: undefined,
   ordersCollected: 0,
   invoicesQueued: 0,
   invoicesDownloaded: 0,
   invoiceErrors: 0,
+  lastInvoiceError: undefined,
   invoiceDownloadsStarted: false,
   downloadInvoicesRequested: false,
   notifiedAt: undefined,

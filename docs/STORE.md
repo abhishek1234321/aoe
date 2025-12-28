@@ -1,10 +1,10 @@
 # Chrome Web Store Prep
 
 ## Summary (short description)
-Export Amazon.in order history to CSV and optionally download invoices, all locally in your browser.
+Export Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to CSV and optionally download invoices, all locally in your browser.
 
 ## Full description (suggested)
-- Scrape your Amazon.in order history into CSV (order ID, date, buyer, total, status, item titles, invoice link).
+- Scrape your Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history into CSV (order ID, date, buyer, total, status, item titles, invoice link).
 - Choose a timeframe (Amazon’s dropdown options) and run up to 1,000 orders per session.
 - Optional: auto-download invoices after a scrape, with progress and error reporting.
 - Privacy-first: all scraping, CSV generation, and invoice downloads run locally in your browser. No data leaves your device.
@@ -19,7 +19,7 @@ Export Amazon.in order history to CSV and optionally download invoices, all loca
   - `storage`: persist scrape state between popup opens.
   - `downloads` (optional): save invoice PDFs when you opt in to invoice downloads (requested only on user action).
   - `notifications` (optional): show a completion notification if you enable it in the popup.
-  - Host permissions: `https://www.amazon.in/*` only.
+  - Host permissions: `https://www.amazon.in/*`, `https://www.amazon.com/*`, `https://www.amazon.ca/*`, `https://www.amazon.co.uk/*`.
 
 ## Assets needed
 - Icons: already in `public/icons/` (16/32/48/128/256).

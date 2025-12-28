@@ -6,7 +6,14 @@ import {
   ScrapeProgressPayload,
   ScrapeSessionSnapshot,
 } from '../shared/types';
-import { AMAZON_HOST, AMAZON_ORDER_HISTORY_URLS, DEBUG_LOGGING, SCRAPER_MESSAGE_SCOPE } from '../shared/constants';
+import {
+  DEFAULT_AMAZON_HOST,
+  DEBUG_LOGGING,
+  SCRAPER_MESSAGE_SCOPE,
+  getAmazonHostForUrl,
+  isAmazonOrderHistoryUrl,
+  resolveAmazonUrl,
+} from '../shared/constants';
 import type { ScraperStartPayload } from '../shared/scraperMessages';
 import type { TimeFilterOption } from '../shared/timeFilters';
 import { parseInvoiceLinks, selectInvoiceLink } from '../shared/invoice';
@@ -156,7 +163,7 @@ const cancelScrape = async () => {
   updateSession({
     phase: 'error',
     hasMorePages: false,
-    message: 'Scrape cancelled by user',
+    message: 'Export cancelled by user',
     errorMessage: undefined,
   });
 };
@@ -179,22 +186,35 @@ const handleStartScrape = ({
   timeFilterLabel,
   downloadInvoices,
   reuseExistingOrders,
+  amazonHost,
 }: {
   year?: number;
   timeFilterValue?: string;
   timeFilterLabel?: string;
   downloadInvoices?: boolean;
   reuseExistingOrders?: boolean;
+  amazonHost?: string | null;
 }) => {
-  debugLog('handleStartScrape', { year, timeFilterValue, timeFilterLabel, downloadInvoices, reuseExistingOrders });
+  debugLog('handleStartScrape', {
+    year,
+    timeFilterValue,
+    timeFilterLabel,
+    downloadInvoices,
+    reuseExistingOrders,
+    amazonHost,
+  });
   const base = reuseExistingOrders ? { ...session, orders: session.orders ?? [] } : createEmptySession();
   const runId = base.runId || buildRunId();
   const existingOrders = base.orders ?? [];
+  const resolvedHost = amazonHost ?? base.amazonHost ?? DEFAULT_AMAZON_HOST;
   session = {
     ...base,
+    amazonHost: resolvedHost,
     phase: reuseExistingOrders ? 'completed' : 'running',
     runId,
     downloadInvoicesRequested: Boolean(downloadInvoices),
+    ordersInRange: reuseExistingOrders ? base.ordersInRange : undefined,
+    lastInvoiceError: undefined,
     yearFilter: year,
     timeFilterValue,
     timeFilterLabel,
@@ -206,10 +226,10 @@ const handleStartScrape = ({
     message: reuseExistingOrders
       ? `Using existing ${existingOrders.length} orders`
       : timeFilterLabel
-        ? `Scraping orders from ${timeFilterLabel}`
+        ? `Exporting orders from ${timeFilterLabel}`
         : year
-          ? `Scraping orders from ${year}`
-          : 'Scraping all available orders',
+          ? `Exporting orders from ${year}`
+          : 'Exporting all available orders',
     startedAt: Date.now(),
     completedAt: reuseExistingOrders ? Date.now() : undefined,
     orders: reuseExistingOrders ? base.orders : [],
@@ -225,6 +245,9 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
 
   if (typeof payload.ordersCollected === 'number') {
     changes.ordersCollected = payload.ordersCollected;
+  }
+  if (typeof payload.ordersInRange === 'number') {
+    changes.ordersInRange = payload.ordersInRange;
   }
   if (session.downloadInvoicesRequested && typeof payload.invoicesQueued === 'number') {
     changes.invoicesQueued = payload.invoicesQueued;
@@ -244,13 +267,13 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   if (payload.completed || payload.phase === 'completed') {
     changes.phase = 'completed';
     changes.completedAt = Date.now();
-    changes.message = payload.message ?? 'Scrape completed';
+    changes.message = payload.message ?? 'Export completed';
     changes.errorMessage = undefined;
   }
   if (payload.phase === 'error' || payload.errorMessage) {
     changes.phase = 'error';
-    changes.errorMessage = payload.errorMessage ?? payload.message ?? 'Unknown scraping error';
-    changes.message = payload.message ?? 'Encountered an error while scraping';
+    changes.errorMessage = payload.errorMessage ?? payload.message ?? 'Unknown export error';
+    changes.message = payload.message ?? 'Encountered an error while exporting';
   }
   if (payload.orders && payload.orders.length) {
     changes.orders = payload.orders;
@@ -266,7 +289,7 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
     changes.completedAt = Date.now();
     changes.message =
       payload.message ??
-      `Collected ${session.ordersLimit} orders — limit reached. Download or reset to scrape another batch.`;
+      `Collected ${session.ordersLimit} orders — limit reached. Download or reset to export another batch.`;
   }
 
   updateSession(changes);
@@ -286,29 +309,17 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   void maybeNotifyCompletion();
 };
 
-const orderHistoryPaths = AMAZON_ORDER_HISTORY_URLS.map((url) => {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return url;
-  }
-});
-
-const isSupportedAmazonUrl = (url?: string | null) => {
-  if (!url) {
-    return false;
-  }
-  try {
-    const parsed = new URL(url);
-    return orderHistoryPaths.some((path) => parsed.pathname.startsWith(path));
-  } catch {
-    return false;
-  }
-};
+const isSupportedAmazonUrl = (url?: string | null) => isAmazonOrderHistoryUrl(url);
 
 const getActiveTab = async () => {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return tab;
+};
+
+const getActiveAmazonHost = async () => {
+  const tab = await getActiveTab();
+  const host = getAmazonHostForUrl(tab?.url ?? null);
+  return host?.baseUrl ?? DEFAULT_AMAZON_HOST;
 };
 
 const getFilterFallback = (count = 3): TimeFilterOption[] => {
@@ -325,13 +336,7 @@ const getFilterFallback = (count = 3): TimeFilterOption[] => {
   ];
 };
 
-const resolveAmazonUrl = (href: string) => {
-  try {
-    return new URL(href, AMAZON_HOST).href;
-  } catch {
-    return href;
-  }
-};
+const resolveSessionUrl = (href: string) => resolveAmazonUrl(href, session.amazonHost ?? DEFAULT_AMAZON_HOST);
 
 const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string }> => {
   const seen = new Set<string>();
@@ -350,20 +355,23 @@ const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string }> => 
 };
 
 const fetchInvoiceDownloadUrl = async (invoiceUrl: string) => {
-  const absoluteUrl = resolveAmazonUrl(invoiceUrl);
+  const absoluteUrl = resolveSessionUrl(invoiceUrl);
   const response = await fetch(absoluteUrl, {
     credentials: 'include',
   });
   if (!response.ok) {
-    throw new Error(`Invoice popover failed with status ${response.status}`);
+    throw new Error(`Invoice request failed with status ${response.status}`);
   }
   const html = await response.text();
   const links = parseInvoiceLinks(html);
   const selected = selectInvoiceLink(links);
-  if (!selected?.href) {
-    throw new Error('No invoice link found in popover response');
+  if (selected?.href) {
+    return resolveSessionUrl(selected.href);
   }
-  return resolveAmazonUrl(selected.href);
+  if (absoluteUrl.toLowerCase().includes('.pdf') || absoluteUrl.toLowerCase().includes('print.html')) {
+    return absoluteUrl;
+  }
+  throw new Error('No invoice link found in invoice response');
 };
 
 const ensureDownloadsPermission = async () => {
@@ -373,6 +381,7 @@ const ensureDownloadsPermission = async () => {
       updateSession({
         message: 'Enable downloads permission to save invoices.',
         invoiceErrors: (session.invoiceErrors ?? 0) + 1,
+        lastInvoiceError: 'Downloads permission not granted.',
       });
     }
     return granted;
@@ -381,6 +390,7 @@ const ensureDownloadsPermission = async () => {
     updateSession({
       message: 'Unable to verify downloads permission.',
       invoiceErrors: (session.invoiceErrors ?? 0) + 1,
+      lastInvoiceError: 'Unable to verify downloads permission.',
     });
     return false;
   }
@@ -388,9 +398,10 @@ const ensureDownloadsPermission = async () => {
 
 const downloadInvoice = async (url: string, orderId: string) => {
   const folder = session.runId ? `${session.runId}/` : '';
+  const extension = url.toLowerCase().includes('.pdf') ? 'pdf' : 'html';
   await browser.downloads.download({
     url,
-    filename: `${folder}${orderId}-invoice.pdf`,
+    filename: `${folder}${orderId}-invoice.${extension}`,
     saveAs: false,
     conflictAction: 'uniquify',
   });
@@ -409,12 +420,14 @@ const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string })
     });
   } catch (error) {
     debugLog('Invoice download failed', error);
+    const message =
+      error instanceof Error && error.message.toLowerCase().includes('user gesture')
+        ? 'Enable multiple downloads in your browser to save invoices.'
+        : `Invoice download failed for ${task.orderId}`;
     updateSession({
       invoiceErrors: (session.invoiceErrors ?? 0) + 1,
-      message:
-        error instanceof Error && error.message.toLowerCase().includes('user gesture')
-          ? 'Enable multiple downloads in your browser to save invoices.'
-          : `Invoice download failed for ${task.orderId}`,
+      lastInvoiceError: message,
+      message,
     });
   }
 };
@@ -438,11 +451,13 @@ const startInvoiceDownloads = async () => {
     invoicesQueued: session.downloadInvoicesRequested ? tasks.length : 0,
     invoicesDownloaded: 0,
     invoiceErrors: 0,
+    lastInvoiceError: undefined,
     invoiceDownloadsStarted: true,
     message: tasks.length ? `Starting invoice downloads (${tasks.length})...` : 'No invoices to download.',
   });
 
   if (!tasks.length) {
+    updateSession({ invoiceDownloadsStarted: false });
     invoiceQueueRunning = false;
     return;
   }
@@ -462,6 +477,7 @@ const startInvoiceDownloads = async () => {
   await Promise.all(Array.from({ length: concurrency }, worker));
 
   updateSession({
+    invoiceDownloadsStarted: false,
     message: cancelInvoiceQueue ? 'Invoice downloads cancelled.' : 'Invoice downloads complete.',
   });
   invoiceQueueRunning = false;
@@ -522,23 +538,51 @@ const updateBadge = () => {
 
 const maybeNotifyCompletion = async () => {
   if (!notifyOnCompletion || session.notifiedAt || session.phase !== 'completed') {
+    debugLog('Notification skipped', {
+      notifyOnCompletion,
+      notifiedAt: session.notifiedAt,
+      phase: session.phase,
+    });
     return;
   }
   try {
     const granted = await browser.permissions.contains({ permissions: ['notifications'] });
     if (!granted) {
+      debugLog('Notifications permission not granted');
       return;
     }
     const count = session.orders.length;
-    await browser.notifications.create({
+    const notificationId = await browser.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Amazon Order Extractor',
-      message: count === 0 ? 'No orders found for the selected range.' : `Scrape complete: ${count} orders ready.`,
+      message: count === 0 ? 'No orders found for the selected range.' : `Export complete: ${count} orders ready.`,
     });
+    debugLog('Notification created', { notificationId });
     updateSession({ notifiedAt: Date.now() });
   } catch (error) {
     debugLog('Failed to send completion notification', error);
+  }
+};
+
+const sendTestNotification = async () => {
+  const granted = await browser.permissions.contains({ permissions: ['notifications'] });
+  if (!granted) {
+    debugLog('Test notification blocked: permission missing');
+    return { success: false, error: 'Notifications permission not granted.' };
+  }
+  try {
+    const notificationId = await browser.notifications.create({
+      type: 'basic',
+      iconUrl: 'icons/icon-128.png',
+      title: 'Amazon Order Extractor',
+      message: 'Test notification — if you cannot see this, check OS/browser settings.',
+    });
+    debugLog('Test notification created', { notificationId });
+    return { success: true, data: { notificationId } };
+  } catch (error) {
+    debugLog('Failed to send test notification', error);
+    return { success: false, error: 'Failed to send test notification.' };
   }
 };
 
@@ -546,12 +590,12 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
   const activeTab = await getActiveTab();
   if (!activeTab?.id) {
     debugLog('No active tab detected');
-    throw new Error('No active tab detected. Open amazon.in order history and try again.');
+    throw new Error('No active tab detected. Open the Amazon order history page and try again.');
   }
 
   if (!isSupportedAmazonUrl(activeTab.url)) {
     debugLog('Active tab not supported', activeTab.url);
-    throw new Error('Please open the Amazon.in order history page before starting a scrape.');
+    throw new Error('Please open the Amazon order history page before starting an export.');
   }
 
   if (!payload.reuseExistingOrders) {
@@ -565,7 +609,7 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
     });
     scrapeTabId = scrapeTab.id ?? null;
     if (!scrapeTabId) {
-      throw new Error('Failed to create scrape tab');
+      throw new Error('Failed to create helper tab');
     }
 
     const waitForReady = (tabId: number) =>
@@ -587,7 +631,7 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
         };
         const timeout = setTimeout(() => {
           cleanup();
-          reject(new Error('Timed out waiting for scrape tab to load'));
+          reject(new Error('Timed out waiting for helper tab to load'));
         }, 10000);
         const onUpdated = (tabIdUpdated: number, info: browser.Tabs.OnUpdatedChangeInfoType) => {
           if (tabIdUpdated === tabId && info.status === 'complete') {
@@ -605,7 +649,7 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
   try {
     debugLog('Sending START to content script', payload);
     if (!scrapeTabId) {
-      throw new Error('Scrape tab unavailable');
+      throw new Error('Helper tab unavailable');
     }
     await browser.tabs.sendMessage(scrapeTabId, {
       scope: SCRAPER_MESSAGE_SCOPE,
@@ -649,10 +693,18 @@ browser.runtime.onMessage.addListener((
         badgeAcknowledgedAt = Date.now();
       }
       updateBadge();
-      return getActiveTab().then((tab) => ({
-        success: true,
-        data: { state: session, isSupported: isSupportedAmazonUrl(tab?.url ?? null), url: tab?.url },
-      }));
+      return getActiveTab().then((tab) => {
+        const host = getAmazonHostForUrl(tab?.url ?? null);
+        return {
+          success: true,
+          data: {
+            state: session,
+            isSupported: isSupportedAmazonUrl(tab?.url ?? null),
+            url: tab?.url,
+            amazonHost: host?.baseUrl ?? session.amazonHost ?? DEFAULT_AMAZON_HOST,
+          },
+        };
+      });
     }
 
     case 'GET_AVAILABLE_FILTERS': {
@@ -680,57 +732,60 @@ browser.runtime.onMessage.addListener((
 
     case 'START_SCRAPE': {
       if (session.phase === 'running') {
-        return Promise.resolve({ success: false, error: 'Scraper is already running' });
+        return Promise.resolve({ success: false, error: 'Export is already running' });
       }
-      const startState = handleStartScrape({
-        year: typedMessage.payload.year,
-        timeFilterValue: typedMessage.payload.timeFilterValue,
-        timeFilterLabel: typedMessage.payload.timeFilterLabel,
-        downloadInvoices: typedMessage.payload.downloadInvoices,
-        reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
-      });
-      if (typedMessage.payload.reuseExistingOrders) {
-        updateSession({
-          phase: 'completed',
-          ordersCollected: session.orders.length,
+      return getActiveAmazonHost().then((amazonHost) => {
+        const startState = handleStartScrape({
+          year: typedMessage.payload.year,
+          timeFilterValue: typedMessage.payload.timeFilterValue,
+          timeFilterLabel: typedMessage.payload.timeFilterLabel,
+          downloadInvoices: typedMessage.payload.downloadInvoices,
+          reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
+          amazonHost,
         });
-        if (typedMessage.payload.downloadInvoices) {
-          void startInvoiceDownloads();
-        }
-        return Promise.resolve({ success: true, data: { state: session } });
-      }
-      const scrapePayload: ScraperStartPayload = {
-        year: typedMessage.payload.year,
-        timeFilterValue: typedMessage.payload.timeFilterValue,
-        timeFilterLabel: typedMessage.payload.timeFilterLabel,
-        downloadInvoices: typedMessage.payload.downloadInvoices,
-        reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
-        limit: session.ordersLimit,
-      };
-      return triggerContentScraper(scrapePayload)
-        .then(() => {
-          if (scrapePayload.reuseExistingOrders) {
-            updateSession({
-              phase: 'completed',
-              message: 'Reusing existing orders, starting invoice downloads...',
-            });
-            if (scrapePayload.downloadInvoices) {
-              void startInvoiceDownloads();
-            }
-            return { success: true, data: { state: session } };
-          }
-          return { success: true, data: { state: startState } };
-        })
-        .catch((error) => {
-          const messageText =
-            error instanceof Error ? error.message : 'Unable to reach the Amazon order page content script.';
+        if (typedMessage.payload.reuseExistingOrders) {
           updateSession({
-            phase: 'error',
-            message: messageText,
-            errorMessage: messageText,
+            phase: 'completed',
+            ordersCollected: session.orders.length,
           });
-          return { success: false, error: messageText };
-        });
+          if (typedMessage.payload.downloadInvoices) {
+            void startInvoiceDownloads();
+          }
+          return { success: true, data: { state: session } };
+        }
+        const scrapePayload: ScraperStartPayload = {
+          year: typedMessage.payload.year,
+          timeFilterValue: typedMessage.payload.timeFilterValue,
+          timeFilterLabel: typedMessage.payload.timeFilterLabel,
+          downloadInvoices: typedMessage.payload.downloadInvoices,
+          reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
+          limit: session.ordersLimit,
+        };
+        return triggerContentScraper(scrapePayload)
+          .then(() => {
+            if (scrapePayload.reuseExistingOrders) {
+              updateSession({
+                phase: 'completed',
+                message: 'Reusing existing orders, starting invoice downloads...',
+              });
+              if (scrapePayload.downloadInvoices) {
+                void startInvoiceDownloads();
+              }
+              return { success: true, data: { state: session } };
+            }
+            return { success: true, data: { state: startState } };
+          })
+          .catch((error) => {
+            const messageText =
+              error instanceof Error ? error.message : 'Unable to reach the Amazon order page content script.';
+            updateSession({
+              phase: 'error',
+              message: messageText,
+              errorMessage: messageText,
+            });
+            return { success: false, error: messageText };
+          });
+      });
     }
 
     case 'SCRAPE_PROGRESS': {
@@ -745,15 +800,25 @@ browser.runtime.onMessage.addListener((
     }
     case 'CANCEL_INVOICE_DOWNLOADS': {
       cancelInvoiceQueue = true;
-      updateSession({ message: 'Cancelling invoice downloads...' });
+      if (!invoiceQueueRunning) {
+        updateSession({ message: 'No invoice downloads in progress.', invoiceDownloadsStarted: false });
+      } else {
+        updateSession({ message: 'Cancelling invoice downloads...' });
+      }
       return Promise.resolve({ success: true, data: { state: session } });
     }
     case 'SET_SETTINGS': {
       if (typedMessage.payload && typeof typedMessage.payload.notifyOnCompletion === 'boolean') {
         notifyOnCompletion = typedMessage.payload.notifyOnCompletion;
         void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
+        if (notifyOnCompletion) {
+          void maybeNotifyCompletion();
+        }
       }
       return Promise.resolve({ success: true, data: { state: session } });
+    }
+    case 'TEST_NOTIFICATION': {
+      return sendTestNotification();
     }
     case 'CANCEL_SCRAPE': {
       return cancelScrape().then(() => ({ success: true, data: { state: session } }));
