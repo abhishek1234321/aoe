@@ -25,7 +25,8 @@
 1. Store prep: finalize listing copy/assets, verify privacy policy hosting, and confirm release build settings. ⏳
 2. Invoice reliability: add retry for failed invoices + a short per-order failure list. 🚧
 3. Long-history UX: guidance + multi-run flow for >1,000 orders. ⏳
-4. Add new locales once fixtures are provided (AU/DE/FR/etc.). ⏳
+4. Manual QA across locales before release. ⏳
+5. Add new locales once fixtures are provided (AU/DE/FR/etc.). ⏳
 
 ## Risks / Watch
 - Large histories (>1k) need chunking UX beyond the time filter.

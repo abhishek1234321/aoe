@@ -12,6 +12,15 @@ Use this checklist before publishing to the Chrome Web Store or tagging a releas
 - [ ] Run `trivy fs . --severity HIGH,CRITICAL` and `npm audit --audit-level=high`.
 - [ ] Capture/update store assets (icons, screenshots, promo images).
 
+## Manual QA (suggested)
+- [ ] Open amazon.in/com/ca/co.uk Orders page and verify the popup detects context.
+- [ ] Run an export for a small timeframe; verify progress, completion, and CSV download.
+- [ ] Run with "Download invoices" enabled; verify PDFs download and retry flow works for failures.
+- [ ] Trigger "No orders" state and verify the zero-state CTA resets the session.
+- [ ] Verify highlights view renders and buyer breakdown appears only when >1 buyer.
+- [ ] Test notifications (enabled) to confirm completion alerts.
+- [ ] Validate long-history messaging: confirm the 1,000-order cap and guidance on reruns.
+
 ## Store submission
 - [ ] Ensure `DEBUG_LOGGING` is false in production builds.
 - [ ] Confirm optional permissions are only requested on user action.
