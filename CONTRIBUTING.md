@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for taking the time to contribute! This project is a browser extension for exporting Amazon.in order history and (optionally) invoices.
+Thanks for taking the time to contribute! This project is a browser extension for exporting Amazon order history (amazon.in/com/ca/co.uk) and optionally downloading invoices.
 
 ## Ground rules
 - Be respectful and follow the Code of Conduct (`CODE_OF_CONDUCT.md`).
@@ -15,6 +15,7 @@ Thanks for taking the time to contribute! This project is a browser extension fo
 
 ## Quality checks
 Run these before opening a PR:
+- `npm run check` (recommended one-shot)
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test:ci`
@@ -36,8 +37,8 @@ We run extension E2E against local HTML fixtures (not live Amazon pages).
 - Optional Trivy scan (if installed): `trivy fs . --severity HIGH,CRITICAL`
 
 ## Tests
-Unit/integration tests live in `tests/` and use fixtures in `docs/samples/amazon.in/`.
-Add or update fixtures if Amazon markup changes.
+Unit/integration tests live in `tests/` and use fixtures in `docs/samples/`.
+Add or update fixtures if Amazon markup changes for any locale.
 
 ## Submitting a PR
 - Describe what changed and why.
