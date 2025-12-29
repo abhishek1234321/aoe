@@ -1,12 +1,14 @@
 # Amazon Order Extractor
 
-Work-in-progress browser extension that scrapes Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to export CSVs and optionally download invoices. See `docs/PLAN.md` for architecture/roadmap.
+Work-in-progress browser extension that exports Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to CSVs and optionally downloads invoices. See `docs/PLAN.md` for architecture/roadmap.
 
 ## Privacy
-- All scraping, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
+- All export processing, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
 - If a future feature needs to call external services, it must be explicitly consented to by the user before any data leaves the machine.
 - Privacy policy (for store listing): `docs/privacy.md` (hosted via GitHub Pages).
   - Enable GitHub Pages from the repository settings with the `docs/` folder.
+- Changelog: `CHANGELOG.md`
+- Release checklist: `docs/RELEASE.md`
 
 ## Getting Started
 
@@ -37,7 +39,7 @@ E2E environment toggles:
 - `E2E_VIDEO=1` to record videos into `test-results/videos`.
 - `E2E_TRACE=0` to disable trace capture (enabled by default).
 
-Scraping, CSV export, invoice downloads (opt-in), and highlights are implemented and evolving.
+Export, CSV download, invoice downloads (opt-in), and highlights are implemented and evolving.
 
 ## Fixtures
 - Sample HTML fixtures live in `docs/samples/` and are sanitized (no PII, no scripts).

@@ -1,6 +1,6 @@
 {
   "name": "aoe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Amazon Order Extractor browser extension",
   "type": "module",
   "directories": {

@@ -468,18 +468,13 @@ const App = () => {
       .sort((a, b) => b.orders.length - a.orders.length || a.label.localeCompare(b.label));
   }, [session?.orders, session?.timeFilterValue]);
 
-  useEffect(() => {
-    if (selectedBuyer === 'all') {
-      return;
-    }
-    if (!buyerGroups.some((group) => group.key === selectedBuyer)) {
-      setSelectedBuyer('all');
-    }
-  }, [buyerGroups, selectedBuyer]);
-
-  const selectedGroup = buyerGroups.find((group) => group.key === selectedBuyer);
-  const summary = selectedBuyer === 'all' ? overallHighlights : selectedGroup?.highlights ?? overallHighlights;
-  const summaryLabel = selectedBuyer === 'all' ? 'All orders' : selectedGroup?.label ?? 'All orders';
+  const resolvedBuyerKey =
+    selectedBuyer === 'all' || buyerGroups.some((group) => group.key === selectedBuyer)
+      ? selectedBuyer
+      : 'all';
+  const selectedGroup = buyerGroups.find((group) => group.key === resolvedBuyerKey);
+  const summary = resolvedBuyerKey === 'all' ? overallHighlights : selectedGroup?.highlights ?? overallHighlights;
+  const summaryLabel = resolvedBuyerKey === 'all' ? 'All orders' : selectedGroup?.label ?? 'All orders';
   const buyerRows = useMemo(() => {
     const rows = [
       {
@@ -779,7 +774,7 @@ const App = () => {
                     <button
                       key={row.key}
                       type="button"
-                      className={`buyer-row ${selectedBuyer === row.key ? 'active' : ''}`}
+                      className={`buyer-row ${resolvedBuyerKey === row.key ? 'active' : ''}`}
                       onClick={() => setSelectedBuyer(row.key)}
                     >
                       <span className="buyer-name">{row.label}</span>

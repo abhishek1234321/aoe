@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Amazon Order Extractor (E2E)",
   "description": "E2E test manifest for local fixtures.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "action": {
     "default_icon": {
       "16": "icons/icon-16.png",
