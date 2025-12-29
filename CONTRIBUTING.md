@@ -22,6 +22,11 @@ Run these before opening a PR:
 - `npm run format:check`
 - `npm run security:audit`
 
+## Optional git hook (recommended)
+To catch lint/type issues before committing:
+1. Enable repo hooks: `git config core.hooksPath .githooks`
+2. Ensure the hook is executable: `chmod +x .githooks/pre-commit`
+
 ## E2E tests (fixtures)
 We run extension E2E against local HTML fixtures (not live Amazon pages).
 1. Install the Playwright browser once: `npm run e2e:install`
