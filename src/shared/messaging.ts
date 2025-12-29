@@ -27,6 +27,9 @@ export type RuntimeMessage =
       type: 'RESET_SCRAPE';
     }
   | {
+      type: 'RETRY_FAILED_INVOICES';
+    }
+  | {
       type: 'CANCEL_INVOICE_DOWNLOADS';
     }
   | {

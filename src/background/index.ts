@@ -2,6 +2,7 @@ import browser from 'webextension-polyfill';
 import type { RuntimeMessage, RuntimeResponse } from '../shared/messaging';
 import {
   createEmptySession,
+  InvoiceFailure,
   OrderSummary,
   ScrapeProgressPayload,
   ScrapeSessionSnapshot,
@@ -25,6 +26,7 @@ let cancelInvoiceQueue = false;
 let notifyOnCompletion = false;
 let badgeClearTimeout: ReturnType<typeof setTimeout> | undefined;
 let badgeAcknowledgedAt: number | null = null;
+let invoiceFailureMap = new Map<string, InvoiceFailure>();
 
 const SESSION_KEY = 'aoe:scrape-session';
 const SETTINGS_KEY = 'aoe:settings';
@@ -53,6 +55,7 @@ const hydrateSession = async () => {
     };
     if (stored && stored[SESSION_KEY]) {
       session = stored[SESSION_KEY];
+      setInvoiceFailures(session.invoiceFailures);
       updateBadge();
     }
   } catch (error) {
@@ -99,8 +102,17 @@ const mergeOrders = (existing: OrderSummary[], incoming: OrderSummary[]): OrderS
   return Array.from(map.values());
 };
 
+const setInvoiceFailures = (failures?: InvoiceFailure[]) => {
+  invoiceFailureMap = new Map((failures ?? []).map((failure) => [failure.orderId, failure]));
+};
+
+const getInvoiceFailures = () => Array.from(invoiceFailureMap.values());
+
 const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
   debugLog('updateSession', changes);
+  if (changes.invoiceFailures) {
+    setInvoiceFailures(changes.invoiceFailures);
+  }
   const mergedOrders =
     changes.orders && changes.orders.length ? mergeOrders(session.orders, changes.orders) : session.orders;
   const ordersCount =
@@ -140,6 +152,7 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
 
 const resetSession = () => {
   session = createEmptySession();
+  invoiceFailureMap.clear();
   void persistSession();
   badgeAcknowledgedAt = null;
   updateBadge();
@@ -203,6 +216,7 @@ const handleStartScrape = ({
     reuseExistingOrders,
     amazonHost,
   });
+  invoiceFailureMap.clear();
   const base = reuseExistingOrders ? { ...session, orders: session.orders ?? [] } : createEmptySession();
   const runId = base.runId || buildRunId();
   const existingOrders = base.orders ?? [];
@@ -221,6 +235,7 @@ const handleStartScrape = ({
     invoiceDownloadsStarted: false,
     invoicesDownloaded: 0,
     invoiceErrors: 0,
+    invoiceFailures: [],
     invoicesQueued: downloadInvoices ? base.invoicesQueued : 0,
     ordersCollected: reuseExistingOrders ? existingOrders.length : 0,
     message: reuseExistingOrders
@@ -338,8 +353,11 @@ const getFilterFallback = (count = 3): TimeFilterOption[] => {
 
 const resolveSessionUrl = (href: string) => resolveAmazonUrl(href, session.amazonHost ?? DEFAULT_AMAZON_HOST);
 
-const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string; orderDetailsUrl?: string }> => {
+const buildInvoiceQueue = (
+  onlyOrderIds?: string[],
+): Array<{ orderId: string; invoiceUrl: string; orderDetailsUrl?: string }> => {
   const seen = new Set<string>();
+  const allowed = onlyOrderIds && onlyOrderIds.length ? new Set(onlyOrderIds) : null;
   const buildOrderDetailsUrl = (orderId: string, orderDetailsUrl?: string) => {
     if (orderDetailsUrl) {
       return resolveSessionUrl(orderDetailsUrl);
@@ -348,7 +366,7 @@ const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string; order
     return resolveSessionUrl(`/your-orders/order-details?orderID=${encoded}`);
   };
   const tasks = session.orders
-    .filter((order) => order.invoiceUrl)
+    .filter((order) => order.invoiceUrl && (!allowed || allowed.has(order.orderId)))
     .map((order) => ({
       orderId: order.orderId,
       invoiceUrl: order.invoiceUrl as string,
@@ -418,6 +436,26 @@ const downloadInvoice = async (url: string, orderId: string) => {
   });
 };
 
+const recordInvoiceFailure = (
+  task: { orderId: string; orderDetailsUrl?: string },
+  message: string,
+) => {
+  invoiceFailureMap.set(task.orderId, {
+    orderId: task.orderId,
+    orderDetailsUrl: task.orderDetailsUrl,
+    message,
+  });
+  return getInvoiceFailures();
+};
+
+const clearInvoiceFailure = (orderId: string) => {
+  if (!invoiceFailureMap.has(orderId)) {
+    return session.invoiceFailures;
+  }
+  invoiceFailureMap.delete(orderId);
+  return getInvoiceFailures();
+};
+
 const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string; orderDetailsUrl?: string }) => {
   try {
     const downloadUrl = await fetchInvoiceDownloadUrl(task.invoiceUrl);
@@ -426,6 +464,7 @@ const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string; o
       invoicesDownloaded: (session.invoicesDownloaded ?? 0) + 1,
       lastInvoiceOrderId: task.orderId,
       lastInvoiceOrderUrl: task.orderDetailsUrl,
+      invoiceFailures: clearInvoiceFailure(task.orderId),
       message: `Downloaded invoice ${Math.min(
         (session.invoicesDownloaded ?? 0) + 1,
         session.invoicesQueued,
@@ -442,16 +481,17 @@ const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string; o
       lastInvoiceError: message,
       lastInvoiceOrderId: task.orderId,
       lastInvoiceOrderUrl: task.orderDetailsUrl,
+      invoiceFailures: recordInvoiceFailure(task, message),
       message,
     });
   }
 };
 
-const startInvoiceDownloads = async () => {
-  if (!session.downloadInvoicesRequested) {
+const startInvoiceDownloads = async (onlyOrderIds?: string[]) => {
+  if (invoiceQueueRunning) {
     return;
   }
-  if (invoiceQueueRunning) {
+  if (!session.downloadInvoicesRequested && !(onlyOrderIds && onlyOrderIds.length)) {
     return;
   }
   const hasPermission = await ensureDownloadsPermission();
@@ -460,15 +500,17 @@ const startInvoiceDownloads = async () => {
   }
   invoiceQueueRunning = true;
   cancelInvoiceQueue = false;
-  const tasks = buildInvoiceQueue();
+  invoiceFailureMap.clear();
+  const tasks = buildInvoiceQueue(onlyOrderIds);
 
   updateSession({
-    invoicesQueued: session.downloadInvoicesRequested ? tasks.length : 0,
+    invoicesQueued: tasks.length,
     invoicesDownloaded: 0,
     invoiceErrors: 0,
     lastInvoiceError: undefined,
     lastInvoiceOrderId: undefined,
     lastInvoiceOrderUrl: undefined,
+    invoiceFailures: [],
     invoiceDownloadsStarted: true,
     message: tasks.length ? `Starting invoice downloads (${tasks.length})...` : 'No invoices to download.',
   });
@@ -822,6 +864,21 @@ browser.runtime.onMessage.addListener((
       } else {
         updateSession({ message: 'Cancelling invoice downloads...' });
       }
+      return Promise.resolve({ success: true, data: { state: session } });
+    }
+    case 'RETRY_FAILED_INVOICES': {
+      if (invoiceQueueRunning) {
+        return Promise.resolve({ success: false, error: 'Invoice downloads are already running.' });
+      }
+      const failedIds = (session.invoiceFailures ?? []).map((failure) => failure.orderId);
+      if (!failedIds.length) {
+        return Promise.resolve({ success: false, error: 'No failed invoices to retry.' });
+      }
+      updateSession({
+        downloadInvoicesRequested: true,
+        message: `Retrying ${failedIds.length} failed invoice${failedIds.length === 1 ? '' : 's'}...`,
+      });
+      void startInvoiceDownloads(failedIds);
       return Promise.resolve({ success: true, data: { state: session } });
     }
     case 'SET_SETTINGS': {

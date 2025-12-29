@@ -7,6 +7,6 @@ If you choose “Share diagnostics,” the extension generates a small, non-sens
 
 Optional permissions are requested only when you enable related features:
 - Downloads: used to save invoice PDFs when you opt in to invoice downloads.
-- Notifications: used to notify you when a scrape completes if you enable notifications.
+- Notifications: used to notify you when an export completes if you enable notifications.
 
 If future features ever require data to leave your device, explicit user consent will be requested before any transfer.

@@ -145,6 +145,7 @@ const App = () => {
           invoicesQueued: session.invoicesQueued,
           invoicesDownloaded: session.invoicesDownloaded,
           invoiceErrors: session.invoiceErrors,
+          invoiceFailures: session.invoiceFailures?.length ?? 0,
           invoiceDownloadsStarted: session.invoiceDownloadsStarted,
           downloadInvoicesRequested: session.downloadInvoicesRequested,
           hasMorePages: session.hasMorePages,
@@ -230,6 +231,29 @@ const App = () => {
     });
     if (!response.success) {
       setError(response.error ?? 'Failed to reset state');
+    } else if (response.data?.state) {
+      setSession(response.data.state);
+      setError(null);
+    }
+    setLoading(false);
+  };
+
+  const handleRetryFailedInvoices = async () => {
+    if (loading) {
+      return;
+    }
+    setLoading(true);
+    const granted = await requestPermission('downloads');
+    if (!granted) {
+      setError('Enable downloads permission to save invoices.');
+      setLoading(false);
+      return;
+    }
+    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+      type: 'RETRY_FAILED_INVOICES',
+    });
+    if (!response.success) {
+      setError(response.error ?? 'Failed to retry invoices');
     } else if (response.data?.state) {
       setSession(response.data.state);
       setError(null);
@@ -369,6 +393,9 @@ const App = () => {
     Math.min(typeof ordersTotalDisplay === 'number' ? ordersTotalDisplay : ordersLimit, ordersLimit),
     1,
   );
+  const invoiceFailures = session?.invoiceFailures ?? [];
+  const hasInvoiceFailures = invoiceFailures.length > 0;
+  const canRetryFailedInvoices = Boolean(session?.phase === 'completed' && hasInvoiceFailures);
   const invoiceErrorHint =
     session?.invoiceErrors && session.invoiceErrors > 0
       ? session.lastInvoiceError ??
@@ -1016,6 +1043,38 @@ const App = () => {
                 >
                   Open order details
                 </a>
+              ) : null}
+            </div>
+          ) : null}
+          {hasInvoiceFailures ? (
+            <div className="invoice-failure-card">
+              <div className="invoice-failure-title">Failed invoices</div>
+              {invoiceFailures.slice(0, 3).map((failure) => (
+                <div key={failure.orderId} className="invoice-failure-entry">
+                  <div className="invoice-failure-row">
+                    <span>{failure.orderId}</span>
+                    {failure.orderDetailsUrl ? (
+                      <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
+                        Open
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="invoice-failure-message">{failure.message}</div>
+                </div>
+              ))}
+              {invoiceFailures.length > 3 ? (
+                <div className="helper-text">And {invoiceFailures.length - 3} more…</div>
+              ) : null}
+              {canRetryFailedInvoices ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
+                  onClick={handleRetryFailedInvoices}
+                  disabled={loading}
+                >
+                  Retry failed invoices
+                </button>
               ) : null}
             </div>
           ) : null}

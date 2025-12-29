@@ -1,6 +1,6 @@
 # Amazon Order Extractor
 
-Privacy-first browser extension for exporting Amazon.in order history to CSV and optionally downloading invoices.
+Privacy-first browser extension for exporting Amazon order history (amazon.in/com/ca/co.uk) to CSV and optionally downloading invoices.
 
 ## Links
 - Repository: https://github.com/abhishek1234321/aoe

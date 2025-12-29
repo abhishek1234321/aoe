@@ -42,6 +42,12 @@ export interface OrderSummary {
   shipments: OrderShipment[];
 }
 
+export interface InvoiceFailure {
+  orderId: string;
+  orderDetailsUrl?: string;
+  message: string;
+}
+
 export interface ScrapeSessionSnapshot {
   phase: ScrapePhase;
   runId?: string;
@@ -56,6 +62,7 @@ export interface ScrapeSessionSnapshot {
   lastInvoiceError?: string;
   lastInvoiceOrderId?: string;
   lastInvoiceOrderUrl?: string;
+  invoiceFailures?: InvoiceFailure[];
   invoiceDownloadsStarted?: boolean;
   ordersLimit: number;
   orders: OrderSummary[];
@@ -103,6 +110,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   lastInvoiceError: undefined,
   lastInvoiceOrderId: undefined,
   lastInvoiceOrderUrl: undefined,
+  invoiceFailures: [],
   invoiceDownloadsStarted: false,
   downloadInvoicesRequested: false,
   notifiedAt: undefined,

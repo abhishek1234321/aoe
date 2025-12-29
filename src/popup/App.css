@@ -196,6 +196,43 @@ body {
   text-decoration: underline;
 }
 
+.invoice-failure-card {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  font-size: 12px;
+}
+
+.invoice-failure-title {
+  font-weight: 600;
+  color: #b91c1c;
+  margin-bottom: 6px;
+}
+
+.invoice-failure-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #7f1d1d;
+}
+
+.invoice-failure-entry + .invoice-failure-entry {
+  margin-top: 6px;
+}
+
+.invoice-failure-message {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #9f1239;
+}
+
+.invoice-failure-row a {
+  color: #b91c1c;
+  text-decoration: underline;
+}
+
 .helper-text {
   margin-top: 6px;
   font-size: 11px;
