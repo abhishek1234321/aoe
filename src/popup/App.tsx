@@ -1005,9 +1005,19 @@ const App = () => {
             </button>
           )}
           {invoiceErrorHint ? (
-            <p className="error-text" style={{ marginTop: '8px' }}>
-              {invoiceErrorHint}
-            </p>
+            <div className="error-text" style={{ marginTop: '8px' }}>
+              <div>{invoiceErrorHint}</div>
+              {session?.lastInvoiceOrderUrl ? (
+                <a
+                  href={session.lastInvoiceOrderUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="error-link"
+                >
+                  Open order details
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </section>
       )}

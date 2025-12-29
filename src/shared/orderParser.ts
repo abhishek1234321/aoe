@@ -14,6 +14,7 @@ const LABEL_VALUE_SELECTOR = '.a-size-base';
 const ORDER_ID_SELECTOR = '.yohtmlc-order-id span[dir="ltr"]';
 const BUYER_NAME_SELECTOR = '.yohtmlc-recipient a, .yohtmlc-recipient span.a-popover-trigger';
 const INVOICE_LINK_TEXT = 'invoice';
+const ORDER_DETAILS_TEXT = 'order details';
 const DELIVERY_BOX_SELECTOR = '.delivery-box';
 const PRIMARY_STATUS_SELECTOR = '.delivery-box__primary-text';
 const SECONDARY_STATUS_SELECTOR = '.delivery-box__secondary-text';
@@ -46,6 +47,7 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
   const orderDateISO = normalizeOrderDate(orderDateText);
   const buyerName = getTrimmedText(card.querySelector(BUYER_NAME_SELECTOR));
   const invoiceUrl = extractInvoiceUrl(card);
+  const orderDetailsUrl = extractOrderDetailsUrl(card);
   const shipments = extractShipments(card);
   const itemCount = shipments.reduce((sum, shipment) => sum + shipment.items.length, 0);
 
@@ -59,6 +61,7 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
     total,
     itemCount,
     invoiceUrl,
+    orderDetailsUrl,
     status: shipments[0]?.statusPrimary,
     shipments,
   };
@@ -88,6 +91,13 @@ const extractInvoiceUrl = (card: Element): string | undefined => {
     (anchor.textContent || '').trim().toLowerCase().includes(INVOICE_LINK_TEXT),
   );
   return invoiceLink?.getAttribute('href') || undefined;
+};
+
+const extractOrderDetailsUrl = (card: Element): string | undefined => {
+  const detailsLink = Array.from(card.querySelectorAll<HTMLAnchorElement>('a')).find((anchor) =>
+    (anchor.textContent || '').trim().toLowerCase().includes(ORDER_DETAILS_TEXT),
+  );
+  return detailsLink?.getAttribute('href') || undefined;
 };
 
 const extractShipments = (card: Element): OrderShipment[] => {

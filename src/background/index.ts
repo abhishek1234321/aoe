@@ -338,11 +338,22 @@ const getFilterFallback = (count = 3): TimeFilterOption[] => {
 
 const resolveSessionUrl = (href: string) => resolveAmazonUrl(href, session.amazonHost ?? DEFAULT_AMAZON_HOST);
 
-const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string }> => {
+const buildInvoiceQueue = (): Array<{ orderId: string; invoiceUrl: string; orderDetailsUrl?: string }> => {
   const seen = new Set<string>();
+  const buildOrderDetailsUrl = (orderId: string, orderDetailsUrl?: string) => {
+    if (orderDetailsUrl) {
+      return resolveSessionUrl(orderDetailsUrl);
+    }
+    const encoded = encodeURIComponent(orderId);
+    return resolveSessionUrl(`/your-orders/order-details?orderID=${encoded}`);
+  };
   const tasks = session.orders
     .filter((order) => order.invoiceUrl)
-    .map((order) => ({ orderId: order.orderId, invoiceUrl: order.invoiceUrl as string }))
+    .map((order) => ({
+      orderId: order.orderId,
+      invoiceUrl: order.invoiceUrl as string,
+      orderDetailsUrl: buildOrderDetailsUrl(order.orderId, order.orderDetailsUrl),
+    }))
     .filter((task) => {
       const key = `${task.orderId}:${task.invoiceUrl}`;
       if (seen.has(key)) {
@@ -407,12 +418,14 @@ const downloadInvoice = async (url: string, orderId: string) => {
   });
 };
 
-const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string }) => {
+const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string; orderDetailsUrl?: string }) => {
   try {
     const downloadUrl = await fetchInvoiceDownloadUrl(task.invoiceUrl);
     await downloadInvoice(downloadUrl, task.orderId);
     updateSession({
       invoicesDownloaded: (session.invoicesDownloaded ?? 0) + 1,
+      lastInvoiceOrderId: task.orderId,
+      lastInvoiceOrderUrl: task.orderDetailsUrl,
       message: `Downloaded invoice ${Math.min(
         (session.invoicesDownloaded ?? 0) + 1,
         session.invoicesQueued,
@@ -427,6 +440,8 @@ const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string })
     updateSession({
       invoiceErrors: (session.invoiceErrors ?? 0) + 1,
       lastInvoiceError: message,
+      lastInvoiceOrderId: task.orderId,
+      lastInvoiceOrderUrl: task.orderDetailsUrl,
       message,
     });
   }
@@ -452,6 +467,8 @@ const startInvoiceDownloads = async () => {
     invoicesDownloaded: 0,
     invoiceErrors: 0,
     lastInvoiceError: undefined,
+    lastInvoiceOrderId: undefined,
+    lastInvoiceOrderUrl: undefined,
     invoiceDownloadsStarted: true,
     message: tasks.length ? `Starting invoice downloads (${tasks.length})...` : 'No invoices to download.',
   });
