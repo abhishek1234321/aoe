@@ -1,43 +1,72 @@
 # Chrome Web Store Prep
 
-## Summary (short description)
-Export Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to CSV and optionally download invoices, all locally in your browser.
+## Summary (short description, <=132 chars)
+Export Amazon orders to CSV and optionally download invoices. Runs locally in your browser.
 
-## Full description (suggested)
-- Export your Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history into CSV (order ID, date, buyer, total, status, item titles, invoice link).
-- Choose a timeframe (Amazon’s dropdown options) and run up to 1,000 orders per session.
-- Optional: auto-download invoices after an export, with progress and error reporting.
-- Privacy-first: all scraping, CSV generation, and invoice downloads run locally in your browser. No data leaves your device.
-- Clear status, cancel controls, and a highlights view (spend, top items, busiest days) after a run.
+## Full description (final)
+Amazon Order Extractor helps you export order history from Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk into CSV.
+
+Highlights:
+- Choose a timeframe from Amazon’s dropdown and export up to 1,000 orders per run.
+- Optional invoice downloads with progress and retry for failures.
+- Post-run highlights: total spend, top items, busiest days, buyer breakdowns.
+- Privacy-first: all processing stays in your browser. No data leaves your device.
+
+Ideal for bookkeeping, budgeting, or archiving your purchases.
 
 ## Privacy
 - All processing is local. No order data is sent off-device.
 - Privacy policy: `PRIVACY.md` (publish as a URL in the store listing).
 - No remote code or analytics; everything is bundled with the extension.
-- Permissions:
-  - `activeTab`: access the active Amazon Orders tab you open.
-  - `storage`: persist export state between popup opens.
-  - `downloads` (optional): save invoice PDFs when you opt in to invoice downloads (requested only on user action).
-  - `notifications` (optional): show a completion notification if you enable it in the popup.
-  - Host permissions: `https://www.amazon.in/*`, `https://www.amazon.com/*`, `https://www.amazon.ca/*`, `https://www.amazon.co.uk/*`.
+
+## Permissions (rationale)
+- `activeTab`: read the Amazon Orders page you open.
+- `storage`: persist export state between popup opens.
+- `downloads` (optional): save invoice PDFs when you opt in.
+- `notifications` (optional): show a completion alert if you enable it.
+- Host permissions:
+  - `https://www.amazon.in/*`
+  - `https://www.amazon.com/*`
+  - `https://www.amazon.ca/*`
+  - `https://www.amazon.co.uk/*`
 
 ## Assets needed
 - Icons: already in `public/icons/` (16/32/48/128/256).
-- Promo images/screenshots (prepare before submission): 1280x800, 640x400, 440x280.
+- Screenshots: at least 1, recommended 5.
+- Promo images (optional, recommended): 1280x800, 640x400, 440x280.
 
 ## Store metadata (fill before submission)
-- Support email: aoesupport@gmail.com
+- Support email: abhishek1234321@gmail.com
 - `SUPPORT_EMAIL` is set in `src/shared/constants.ts` to show the email support option in the popup.
-- Privacy policy URL: https://abhishek1234321.github.io/aoe/privacy.html
+- Privacy policy URL: TODO (must be public, even if repo stays private)
 - Homepage URL: https://github.com/abhishek1234321/aoe
 - Issue tracker: https://github.com/abhishek1234321/aoe/issues/new
 
 ## Suggested screenshot set
-- Time filter selection + start button (idle state)
-- Export running state with progress + status
-- Completed state with Download CSV button
-- Highlights view
-- Privacy footer visible
+1. Idle state: time filter selection + Start export.
+2. Export running: progress bar + status.
+3. Export complete: Download CSV + counts.
+4. Highlights view: spend + top items.
+5. Privacy footer visible (local-only statement + support links).
+
+## Promo image ideas
+- Top: "Export Amazon Orders" headline, with a CSV icon.
+- Bottom: "Local-only • Optional invoices • Highlights" (three badges).
+
+## Demo video (30–45s) storyboard
+1. Open Amazon Orders page.
+2. Open extension, pick a timeframe.
+3. Start export → show progress.
+4. Completed → Download CSV.
+5. Open Highlights view.
+6. End on privacy footer (local-only message).
+
+## Submission steps
+1. Run `npm run build` and zip `dist/`.
+2. Verify `DEBUG_LOGGING` is false in production builds.
+3. Upload screenshots + promo images.
+4. Paste the short and full description.
+5. Set the privacy policy URL and support email.
 
 ## Listing checklist
 - Turn off debug logging for release (`DEBUG_LOGGING` false in production builds).

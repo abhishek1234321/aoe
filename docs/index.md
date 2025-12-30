@@ -4,7 +4,7 @@ Privacy-first browser extension for exporting Amazon order history (amazon.in/co
 
 ## Links
 - Repository: https://github.com/abhishek1234321/aoe
-- Privacy policy: ./privacy.html
+- Privacy policy: ./privacy.md
 - Support: https://github.com/abhishek1234321/aoe/issues/new
 
 ## Data policy

@@ -71,4 +71,4 @@ export const resolveAmazonUrl = (href: string, baseUrl?: string | null): string 
 export const MAX_ORDERS_PER_RUN = 1000;
 export const SCRAPER_MESSAGE_SCOPE = 'aoe:scraper';
 export const DEBUG_LOGGING = Boolean(import.meta.env?.DEV);
-export const SUPPORT_EMAIL = 'aoesupport@gmail.com';
+export const SUPPORT_EMAIL = 'abhishek1234321@gmail.com';

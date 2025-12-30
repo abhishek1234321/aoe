@@ -10,3 +10,5 @@ Optional permissions are requested only when you enable related features:
 - Notifications: used to notify you when an export completes if you enable notifications.
 
 If future features ever require data to leave your device, explicit user consent will be requested before any transfer.
+
+Support: abhishek1234321@gmail.com
