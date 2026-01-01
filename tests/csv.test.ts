@@ -58,6 +58,7 @@ describe('ordersToCsv', () => {
     expect(rows[0]['Order Details URL']).toBe('https://www.amazon.in/your-orders/order-details?orderID=ORDER-1');
     expect(rows[0]['Invoice URL']).toBe('https://www.amazon.in/your-orders/invoice/popover?orderId=ORDER-1');
     expect(rows[1]['Order ID']).toBe('ORDER-2');
+    expect(rows[1]['Order Details URL']).toBe('https://www.amazon.in/your-orders/order-details?orderID=ORDER-2');
     expect(rows[2]['Order ID']).toBe('Total (non-cancelled)');
     expect(rows[2]['Total Amount']).toBe('₹ 100.00');
     expect(rows[2].Currency).toBe('₹');

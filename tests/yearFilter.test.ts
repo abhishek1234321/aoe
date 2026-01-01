@@ -49,4 +49,14 @@ describe('time filter helpers', () => {
     expect(result.matched).toBe(false);
     expect(select?.value).toBe(initialValue);
   });
+
+  it('returns empty filters when the dropdown is missing', () => {
+    const dom = new JSDOM('<!doctype html><html><body><div>No filters</div></body></html>');
+    const filters = extractTimeFilters(dom.window.document);
+    const result = applyTimeFilter(dom.window.document, 'months-3');
+
+    expect(filters).toHaveLength(0);
+    expect(result.changed).toBe(false);
+    expect(result.matched).toBe(false);
+  });
 });

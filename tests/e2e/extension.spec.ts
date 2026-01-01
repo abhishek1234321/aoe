@@ -7,6 +7,7 @@ import type { BrowserContext, Page, TestInfo } from '@playwright/test';
 let baseUrl = '';
 const fixtureDir = path.resolve(process.cwd(), 'docs', 'samples', 'amazon.in');
 const ordersFixture = path.join(fixtureDir, 'e2e-orders.html');
+const ordersNoFilterFixture = path.join(fixtureDir, 'e2e-orders-no-filter.html');
 const headlessRequested = process.env.E2E_HEADLESS === '1';
 const headless = false;
 const slowMo = Number(process.env.E2E_SLOWMO ?? 0) || undefined;
@@ -18,6 +19,12 @@ const startFixtureServer = async () => {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     res.setHeader('Cache-Control', 'no-store');
+    if (url.pathname.startsWith('/your-orders/no-filter')) {
+      const html = readFileSync(ordersNoFilterFixture, 'utf-8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+      return;
+    }
     if (url.pathname.startsWith('/your-orders')) {
       const html = readFileSync(ordersFixture, 'utf-8');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -179,6 +186,23 @@ test.describe('extension e2e (fixtures)', () => {
 
     await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
     await expect(popupPage.getByText('Invoices queued:')).toBeVisible();
+
+    await popupPage.close();
+    await orderPage.close();
+  });
+
+  test('shows fallback filters when time filter is missing', async () => {
+    const orderPage = await context.newPage();
+    trackPage(orderPage);
+    await orderPage.goto(`${baseUrl}/your-orders/no-filter`);
+    await orderPage.bringToFront();
+
+    const popupPage = await context.newPage();
+    trackPage(popupPage);
+    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+    await ensurePopupReady(popupPage, orderPage);
+
+    await expect(popupPage.locator('#timeFilter')).toContainText('past 3 months');
 
     await popupPage.close();
     await orderPage.close();
