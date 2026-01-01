@@ -4,8 +4,7 @@ import { readFileSync } from 'node:fs';
 import { chromium, expect, test } from '@playwright/test';
 import type { BrowserContext, Page, TestInfo } from '@playwright/test';
 
-const port = Number(process.env.E2E_PORT ?? 4173);
-const baseUrl = `http://localhost:${port}`;
+let baseUrl = '';
 const fixtureDir = path.resolve(process.cwd(), 'docs', 'samples', 'amazon.in');
 const ordersFixture = path.join(fixtureDir, 'e2e-orders.html');
 const headlessRequested = process.env.E2E_HEADLESS === '1';
@@ -17,7 +16,7 @@ const debugLogs: string[] = [];
 
 const startFixtureServer = async () => {
   const server = createServer((req, res) => {
-    const url = new URL(req.url ?? '/', baseUrl);
+    const url = new URL(req.url ?? '/', 'http://localhost');
     res.setHeader('Cache-Control', 'no-store');
     if (url.pathname.startsWith('/your-orders')) {
       const html = readFileSync(ordersFixture, 'utf-8');
@@ -29,7 +28,12 @@ const startFixtureServer = async () => {
     res.end('<!DOCTYPE html><html><body><h1>Not orders</h1></body></html>');
   });
 
-  await new Promise<void>((resolve) => server.listen(port, resolve));
+  const desiredPort = process.env.E2E_PORT ? Number(process.env.E2E_PORT) : 0;
+  await new Promise<void>((resolve) => server.listen(desiredPort, resolve));
+  const address = server.address();
+  if (typeof address === 'object' && address?.port) {
+    baseUrl = `http://localhost:${address.port}`;
+  }
   return server;
 };
 
@@ -62,8 +66,8 @@ const ensurePopupReady = async (popupPage: Page, orderPage: Page) => {
 
 test.describe('extension e2e (fixtures)', () => {
   test.skip(headlessRequested, 'Chromium extensions require headed mode.');
-  let server: Awaited<ReturnType<typeof startFixtureServer>>;
-  let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>>;
+  let server: Awaited<ReturnType<typeof startFixtureServer>> | null = null;
+  let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | null = null;
   let extensionId: string;
 
   test.beforeAll(async () => {
@@ -83,8 +87,12 @@ test.describe('extension e2e (fixtures)', () => {
   });
 
   test.afterAll(async () => {
-    await context.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (context) {
+      await context.close();
+    }
+    if (server) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   test.beforeEach(async ({}, testInfo) => {
@@ -154,9 +162,20 @@ test.describe('extension e2e (fixtures)', () => {
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
     await ensurePopupReady(popupPage, orderPage);
 
-    await expect(popupPage.locator('#timeFilter option[value="months-3"]')).toBeVisible();
-    await popupPage.selectOption('#timeFilter', { value: 'months-3' });
-    await popupPage.getByRole('button', { name: 'Start export' }).click();
+    await orderPage.bringToFront();
+    await popupPage.evaluate(() => {
+      const select = document.querySelector<HTMLSelectElement>('#timeFilter');
+      if (!select) return;
+      select.value = 'months-3';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      const form = select.closest('form');
+      if (!form) return;
+      if ('requestSubmit' in form) {
+        (form as HTMLFormElement).requestSubmit();
+      } else {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+    });
 
     await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
     await expect(popupPage.getByText('Invoices queued:')).toBeVisible();

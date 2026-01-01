@@ -37,6 +37,8 @@ const debugLog = (...args: unknown[]) => {
   }
 };
 
+const ALLOW_E2E = import.meta.env?.VITE_E2E === 'true';
+
 const isAuthorizedSender = (sender?: browser.Runtime.MessageSender) =>
   !sender?.id || sender.id === browser.runtime.id;
 
@@ -323,13 +325,58 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
 
 const isSupportedAmazonUrl = (url?: string | null) => isAmazonOrderHistoryUrl(url);
 
+type OrderHistoryTab = {
+  id: number;
+  url: string;
+};
+
+let lastOrderHistoryTab: OrderHistoryTab | null = null;
+
 const getActiveTab = async () => {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return tab;
 };
 
+const recordOrderHistoryTab = (tab?: browser.Tabs.Tab) => {
+  if (!tab?.id || !tab.url) {
+    return;
+  }
+  if (isSupportedAmazonUrl(tab.url)) {
+    lastOrderHistoryTab = { id: tab.id, url: tab.url };
+  }
+};
+
+const getActiveOrLastOrderTab = async () => {
+  const activeTab = await getActiveTab();
+  if (activeTab?.url && isSupportedAmazonUrl(activeTab.url)) {
+    return activeTab;
+  }
+  if (ALLOW_E2E && lastOrderHistoryTab?.id) {
+    try {
+      const fallbackTab = await browser.tabs.get(lastOrderHistoryTab.id);
+      if (fallbackTab?.url && isSupportedAmazonUrl(fallbackTab.url)) {
+        return fallbackTab;
+      }
+    } catch {
+      return activeTab;
+    }
+  }
+  return activeTab;
+};
+
+if (ALLOW_E2E) {
+  browser.tabs.onActivated.addListener(({ tabId }) => {
+    void browser.tabs.get(tabId).then(recordOrderHistoryTab).catch(() => undefined);
+  });
+  browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete') {
+      recordOrderHistoryTab(tab);
+    }
+  });
+}
+
 const getActiveAmazonHost = async () => {
-  const tab = await getActiveTab();
+  const tab = await getActiveOrLastOrderTab();
   const host = getAmazonHostForUrl(tab?.url ?? null);
   return host?.baseUrl ?? DEFAULT_AMAZON_HOST;
 };
@@ -643,7 +690,7 @@ const sendTestNotification = async () => {
 };
 
 const triggerContentScraper = async (payload: ScraperStartPayload) => {
-  const activeTab = await getActiveTab();
+  const activeTab = await getActiveOrLastOrderTab();
   if (!activeTab?.id) {
     debugLog('No active tab detected');
     throw new Error('No active tab detected. Open the Amazon order history page and try again.');
@@ -749,7 +796,7 @@ browser.runtime.onMessage.addListener((
         badgeAcknowledgedAt = Date.now();
       }
       updateBadge();
-      return getActiveTab().then((tab) => {
+      return getActiveOrLastOrderTab().then((tab) => {
         const host = getAmazonHostForUrl(tab?.url ?? null);
         return {
           success: true,
@@ -764,7 +811,7 @@ browser.runtime.onMessage.addListener((
     }
 
     case 'GET_AVAILABLE_FILTERS': {
-      return getActiveTab()
+      return getActiveOrLastOrderTab()
         .then(async (tab) => {
           if (!tab?.id || !isSupportedAmazonUrl(tab.url)) {
             return { success: true, data: { filters: getFilterFallback() } };

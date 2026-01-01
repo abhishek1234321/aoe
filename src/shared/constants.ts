@@ -18,6 +18,7 @@ export const DEFAULT_AMAZON_HOST = defaultHost.baseUrl;
 export const AMAZON_ORDER_HISTORY_URLS = AMAZON_HOSTS.flatMap((host) =>
   host.orderHistoryPaths.map((path) => `${host.baseUrl}${path}`),
 );
+const ALLOW_LOCALHOST_E2E = import.meta.env?.VITE_E2E === 'true';
 
 export const getAmazonHostForUrl = (url?: string | null): AmazonHostConfig | null => {
   if (!url) {
@@ -52,6 +53,9 @@ export const isAmazonOrderHistoryUrl = (url?: string | null): boolean => {
     const parsed = new URL(url);
     const host = getAmazonHostForUrl(url);
     if (!host) {
+      if (ALLOW_LOCALHOST_E2E && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)) {
+        return fallbackHost.orderHistoryPaths.some((path) => parsed.pathname.startsWith(path));
+      }
       return false;
     }
     return host.orderHistoryPaths.some((path) => parsed.pathname.startsWith(path));
