@@ -587,12 +587,13 @@ const App = () => {
   const showBuyerGroups = buyerGroups.length > 1;
 
   const filterOptions = useMemo(() => {
-    if (availableFilters.length) {
-      return availableFilters;
+    const sanitized = availableFilters.filter((option) => option.value);
+    if (sanitized.length) {
+      return sanitized;
     }
     const current = new Date().getFullYear();
     return [
-      { value: '', label: 'All available orders' },
+      { value: 'last30', label: 'last 30 days' },
       { value: 'months-3', label: 'past 3 months' },
       { value: `year-${current}`, label: String(current), year: current },
       { value: `year-${current - 1}`, label: String(current - 1), year: current - 1 },
@@ -616,16 +617,17 @@ const App = () => {
           <div className="hero-body">
             <img src={heroOrders} alt="Orders illustration" className="illustration" />
             <div>
-              <p className="hero-title">Head to your Amazon order history</p>
+              <p className="hero-title">Open your Amazon Orders page</p>
               <p className="hero-copy">
-                Open the Orders page, then click <strong>Start export</strong> to save your orders as a CSV.
+                We&apos;ll open Orders in a new tab. When it loads, click the extension icon again, choose a time range,
+                and click <strong>Start export</strong>.
               </p>
             </div>
           </div>
           <a href={ordersUrl} target="_blank" rel="noreferrer" className="hero-cta">
-            Open order history
+            Open order history (new tab)
           </a>
-          <p className="hero-hint">If you were already there, refresh the order page and the extension.</p>
+          <p className="hero-hint">Already on Orders? Refresh the tab, then reopen this extension.</p>
         </section>
         <footer className="privacy-note sticky-footer">
           <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
@@ -699,16 +701,11 @@ const App = () => {
                 required
               >
                 <option value="">Select a range</option>
-                {filterOptions.map((option) => {
-                  if (!option.value) {
-                    return null;
-                  }
-                  return (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  );
-                })}
+                {filterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
 
               <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>

@@ -8,6 +8,7 @@ import { isScraperMessage } from '@shared/scraperMessages';
 import { applyTimeFilter, extractTimeFilters } from '@shared/timeFilters';
 
 const bannerId = '__aoe-dev-banner';
+const readyBannerId = '__aoe-ready-banner';
 let isScraping = false;
 const AUTO_SCRAPE_STORAGE_KEY = '__aoe:auto-scrape';
 const PAGE_COUNT_KEY = '__aoe:page-count';
@@ -56,6 +57,63 @@ const injectDevBanner = () => {
   banner.style.zIndex = '2147483647';
   banner.style.boxShadow = '0 0 8px rgba(0, 0, 0, 0.3)';
   banner.style.pointerEvents = 'none';
+  document.body.appendChild(banner);
+};
+
+const removeReadyBanner = () => {
+  const banner = document.getElementById(readyBannerId);
+  if (banner && banner.parentElement) {
+    banner.parentElement.removeChild(banner);
+  }
+};
+
+const injectReadyBanner = () => {
+  if (!isOrderHistoryPage()) {
+    return;
+  }
+  if (document.getElementById(readyBannerId)) {
+    return;
+  }
+  const banner = document.createElement('div');
+  banner.id = readyBannerId;
+  banner.setAttribute('role', 'status');
+  banner.style.position = 'fixed';
+  banner.style.bottom = '16px';
+  banner.style.right = '16px';
+  banner.style.zIndex = '2147483647';
+  banner.style.background = '#ffffff';
+  banner.style.color = '#111827';
+  banner.style.border = '1px solid #e5e7eb';
+  banner.style.borderRadius = '10px';
+  banner.style.padding = '10px 12px';
+  banner.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.12)';
+  banner.style.display = 'flex';
+  banner.style.gap = '8px';
+  banner.style.alignItems = 'flex-start';
+  banner.style.maxWidth = '300px';
+  banner.style.fontSize = '12px';
+  banner.style.lineHeight = '1.4';
+
+  const text = document.createElement('span');
+  text.textContent = 'Amazon Order Extractor is ready. Click the extension icon to start export.';
+  text.style.flex = '1';
+
+  const dismissButton = document.createElement('button');
+  dismissButton.type = 'button';
+  dismissButton.textContent = 'Dismiss';
+  dismissButton.style.cursor = 'pointer';
+  dismissButton.style.border = '1px solid #e5e7eb';
+  dismissButton.style.background = '#f8fafc';
+  dismissButton.style.borderRadius = '8px';
+  dismissButton.style.fontSize = '11px';
+  dismissButton.style.padding = '4px 6px';
+  dismissButton.style.color = '#111827';
+  dismissButton.addEventListener('click', () => {
+    removeReadyBanner();
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(dismissButton);
   document.body.appendChild(banner);
 };
 
@@ -167,6 +225,7 @@ const executeScrape = async (payload: ScraperStartPayload) => {
     return;
   }
   isScraping = true;
+  removeReadyBanner();
 
   try {
     if (!isOrderHistoryPage()) {
@@ -261,6 +320,7 @@ browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime
 });
 
 injectDevBanner();
+injectReadyBanner();
 
 const autoPayloadRaw = sessionStorage.getItem(AUTO_SCRAPE_STORAGE_KEY);
 if (autoPayloadRaw) {
