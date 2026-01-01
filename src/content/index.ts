@@ -10,6 +10,8 @@ import { applyTimeFilter, extractTimeFilters } from '@shared/timeFilters';
 const bannerId = '__aoe-dev-banner';
 let isScraping = false;
 const AUTO_SCRAPE_STORAGE_KEY = '__aoe:auto-scrape';
+const PAGE_COUNT_KEY = '__aoe:page-count';
+const PAGE_RUN_KEY = '__aoe:page-run';
 const debugLog = (...args: unknown[]) => {
   if (DEBUG_LOGGING) {
     console.info('[AOE:content]', ...args);
@@ -98,6 +100,19 @@ const saveAutoContinuePayload = (payload: ScraperStartPayload | null) => {
   }
 };
 
+const getNextPageCount = (payload: ScraperStartPayload) => {
+  const runId = payload.runId ?? '';
+  const storedRunId = sessionStorage.getItem(PAGE_RUN_KEY);
+  if (storedRunId !== runId) {
+    sessionStorage.setItem(PAGE_RUN_KEY, runId);
+    sessionStorage.setItem(PAGE_COUNT_KEY, '0');
+  }
+  const current = Number(sessionStorage.getItem(PAGE_COUNT_KEY) ?? '0') || 0;
+  const next = current + 1;
+  sessionStorage.setItem(PAGE_COUNT_KEY, String(next));
+  return next;
+};
+
 const waitForYearSelect = (timeoutMs = 8000, intervalMs = 150): Promise<HTMLSelectElement | null> =>
   new Promise((resolve) => {
     const start = Date.now();
@@ -172,6 +187,7 @@ const executeScrape = async (payload: ScraperStartPayload) => {
     debugLog('Parsing orders for payload', payload);
     const orders = parseOrdersFromDocument(document);
     const ordersInRange = getOrdersInRange(document);
+    const pagesScraped = getNextPageCount(payload);
     const invoiceCount = orders.filter((order) => Boolean(order.invoiceUrl)).length;
     const nextLink = getNextPageLink();
 
@@ -179,6 +195,7 @@ const executeScrape = async (payload: ScraperStartPayload) => {
     const response = await dispatchProgress({
       orders,
       ordersInRange,
+      pagesScraped,
       invoicesQueued: invoiceCount,
       hasMorePages: Boolean(nextLink),
       message: `Collected ${orders.length} orders from current page.`,

@@ -55,6 +55,7 @@ export interface ScrapeSessionSnapshot {
   downloadInvoicesRequested?: boolean;
   notifiedAt?: number;
   ordersInRange?: number;
+  pagesScraped?: number;
   ordersCollected: number;
   invoicesQueued: number;
   invoicesDownloaded: number;
@@ -87,6 +88,7 @@ export interface ScrapeCommandPayload {
 
 export interface ScrapeProgressPayload {
   ordersInRange?: number;
+  pagesScraped?: number;
   ordersCollected?: number;
   invoicesQueued?: number;
   invoicesDownloaded?: number;
@@ -103,6 +105,7 @@ export const createEmptySession = (): ScrapeSessionSnapshot => ({
   phase: 'idle',
   amazonHost: undefined,
   ordersInRange: undefined,
+  pagesScraped: 0,
   ordersCollected: 0,
   invoicesQueued: 0,
   invoicesDownloaded: 0,

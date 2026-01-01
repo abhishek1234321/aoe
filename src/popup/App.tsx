@@ -19,6 +19,7 @@ const downloadCsv = (csvText: string, runId?: string) => {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
+  URL.revokeObjectURL(anchor.href);
 };
 
 const useSessionState = () => {
@@ -55,13 +56,29 @@ const formatTimestamp = (timestamp?: number) => {
   }
 };
 
+const formatEta = (ms: number) => {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return '—';
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) {
+    return `~${totalSeconds}s`;
+  }
+  const minutes = Math.round(totalSeconds / 60);
+  if (minutes < 60) {
+    return `~${minutes}m`;
+  }
+  const hours = Math.round(minutes / 60);
+  return `~${hours}h`;
+};
+
 const App = () => {
   const { session, setSession, loading, setLoading, error, setError, refresh } = useSessionState();
   const [selectedFilter, setSelectedFilter] = useState<string>('');
   const [availableFilters, setAvailableFilters] = useState<TimeFilterOption[]>([]);
   const [isOnOrderPage, setIsOnOrderPage] = useState<boolean | null>(null);
   const [downloadInvoices, setDownloadInvoices] = useState<boolean>(false);
-  const [view, setView] = useState<'main' | 'highlights'>('main');
+  const [view, setView] = useState<'main' | 'highlights' | 'invoices'>('main');
   const [showFilterOverride, setShowFilterOverride] = useState<boolean>(false);
   const [version] = useState(() => browser.runtime.getManifest().version ?? '');
   const [notifyOnCompletion, setNotifyOnCompletion] = useState<boolean>(false);
@@ -261,6 +278,43 @@ const App = () => {
     setLoading(false);
   };
 
+  const handleDownloadCsv = async () => {
+    if (!session?.orders) {
+      return;
+    }
+    downloadCsv(ordersToCsv(session.orders), session.runId);
+    if (shouldPromptInvoiceDownload) {
+      await handleStartInvoiceDownloads();
+    }
+  };
+
+  const handleStartInvoiceDownloads = async () => {
+    if (loading) {
+      return;
+    }
+    setLoading(true);
+    const granted = await requestPermission('downloads');
+    if (!granted) {
+      setError('Enable downloads permission to save invoices.');
+      setLoading(false);
+      return;
+    }
+    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+      type: 'START_SCRAPE',
+      payload: {
+        reuseExistingOrders: true,
+        downloadInvoices: true,
+      },
+    });
+    if (!response.success) {
+      setError(response.error ?? 'Failed to start invoice download');
+    } else if (response.data?.state) {
+      setSession(response.data.state);
+      setError(null);
+    }
+    setLoading(false);
+  };
+
   const handleChooseAnotherTimeframe = async () => {
     if (loading) {
       return;
@@ -374,6 +428,7 @@ const App = () => {
       (session?.invoicesQueued ?? 0) > 0 &&
       (session?.invoicesDownloaded ?? 0) === 0,
   );
+  const shouldPromptInvoiceDownload = canDownloadInvoicesOnly && !session?.invoiceDownloadsStarted;
   const showCancelInvoices = Boolean(session?.invoiceDownloadsStarted && (session?.invoicesDownloaded ?? 0) < (session?.invoicesQueued ?? 0));
   const showCancelScrape = session?.phase === 'running';
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
@@ -393,6 +448,29 @@ const App = () => {
     Math.min(typeof ordersTotalDisplay === 'number' ? ordersTotalDisplay : ordersLimit, ordersLimit),
     1,
   );
+  const pagesScraped = session?.pagesScraped ?? 0;
+  const etaLabel = useMemo(() => {
+    if (session?.phase !== 'running') {
+      return null;
+    }
+    if (!session.startedAt || ordersCollectedDisplay < 3) {
+      return null;
+    }
+    const total = Math.min(ordersTotalDisplay, ordersLimit);
+    const remaining = total - ordersCollectedDisplay;
+    if (remaining <= 0) {
+      return null;
+    }
+    const elapsedMs = Date.now() - session.startedAt;
+    if (elapsedMs < 5000) {
+      return null;
+    }
+    const rate = ordersCollectedDisplay / elapsedMs;
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return null;
+    }
+    return formatEta(remaining / rate);
+  }, [ordersCollectedDisplay, ordersLimit, ordersTotalDisplay, session?.phase, session?.startedAt]);
   const invoiceFailures = session?.invoiceFailures ?? [];
   const hasInvoiceFailures = invoiceFailures.length > 0;
   const canRetryFailedInvoices = Boolean(session?.phase === 'completed' && hasInvoiceFailures);
@@ -410,7 +488,15 @@ const App = () => {
         session.errorMessage.includes('Timed out waiting for helper tab')),
   );
 
-  const showFilterForm = !isEmptyResult || showFilterOverride;
+  const showFilterForm = viewMode === 'main' && (!isEmptyResult || showFilterOverride);
+  const showControlSection =
+    viewMode === 'main' &&
+    (showFilterForm ||
+      canShowHighlights ||
+      hasInvoiceFailures ||
+      shouldPromptInvoiceDownload ||
+      showResetButton ||
+      showCancelScrape);
 
   const requestPermission = async (permission: 'downloads' | 'notifications') => {
     try {
@@ -559,7 +645,7 @@ const App = () => {
     <div className="popup-container">
       <header className="popup-header sticky-header">
         <div className="header-row">
-          {viewMode === 'highlights' ? (
+          {viewMode !== 'main' ? (
             <button
               type="button"
               className="secondary-button"
@@ -592,9 +678,11 @@ const App = () => {
       </header>
 
       <div className="content-scroll">
-        <section style={{ marginTop: '16px' }}>
-          {showFilterForm && (
-            <form onSubmit={handleSubmit}>
+        <div className="view-surface" key={viewMode}>
+          {showControlSection ? (
+            <section style={{ marginTop: '16px' }}>
+              {showFilterForm && (
+                <form onSubmit={handleSubmit}>
               <label htmlFor="timeFilter" className="field-label">
                 Choose a time filter
               </label>
@@ -636,7 +724,7 @@ const App = () => {
                   }}
                   disabled={isBlockedPage}
                 />
-                <span>Download invoices after export</span>
+                <span>Download invoices after CSV download</span>
               </label>
 
               <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -675,17 +763,17 @@ const App = () => {
                 </div>
               ) : null}
 
-            <button
-              type="submit"
-              disabled={!canStart || !selectedFilter}
-              className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
-            >
-              {isRunning ? 'Export in progress…' : loading ? 'Working…' : 'Start export'}
-            </button>
-          </form>
-          )}
+                  <button
+                    type="submit"
+                    disabled={!canStart || !selectedFilter}
+                    className={`primary-button ${canStart && selectedFilter ? '' : 'disabled'}`}
+                  >
+                    {isRunning ? 'Export in progress…' : loading ? 'Working…' : 'Start export'}
+                  </button>
+                </form>
+              )}
 
-          {canShowHighlights && viewMode === 'main' ? (
+              {canShowHighlights ? (
             <button
               type="button"
               className="secondary-button"
@@ -698,41 +786,30 @@ const App = () => {
             </button>
           ) : null}
 
-          {canDownloadInvoicesOnly && (
+              {hasInvoiceFailures ? (
             <button
               type="button"
-              onClick={async () => {
-                setLoading(true);
-                const granted = await requestPermission('downloads');
-                if (!granted) {
-                  setError('Enable downloads permission to save invoices.');
-                  setLoading(false);
-                  return;
-                }
-                const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
-                  type: 'START_SCRAPE',
-                  payload: {
-                    reuseExistingOrders: true,
-                    downloadInvoices: true,
-                  },
-                });
-                if (!response.success) {
-                  setError(response.error ?? 'Failed to start invoice download');
-                } else if (response.data?.state) {
-                  setSession(response.data.state);
-                  setError(null);
-                }
-                setLoading(false);
-              }}
+              className="secondary-button"
+              style={{ marginTop: '8px' }}
+              onClick={() => setView('invoices')}
+            >
+              View failed invoices ({invoiceFailures.length})
+            </button>
+          ) : null}
+
+              {shouldPromptInvoiceDownload && (
+            <button
+              type="button"
+              onClick={handleStartInvoiceDownloads}
               className={`secondary-button ${loading ? 'disabled' : ''}`}
               disabled={loading}
               style={{ marginTop: '8px' }}
             >
-              Download invoices from last export
+              Download invoices
             </button>
           )}
 
-          {showResetButton && (
+              {showResetButton && (
             <button
               type="button"
               onClick={handleReset}
@@ -742,7 +819,7 @@ const App = () => {
               Reset session
             </button>
           )}
-          {showCancelScrape && (
+              {showCancelScrape && (
             <button
               type="button"
               onClick={async () => {
@@ -761,7 +838,8 @@ const App = () => {
               Stop export
             </button>
           )}
-        </section>
+            </section>
+          ) : null}
 
         {viewMode === 'highlights' && canShowHighlights ? (
           <section className="status-block">
@@ -851,6 +929,69 @@ const App = () => {
                 </div>
               </>
             )}
+            <div className="view-actions">
+              {canDownload ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadCsv}
+                  className={`download-button ${loading ? 'disabled' : ''}`}
+                  disabled={loading}
+                >
+                  Download CSV
+                </button>
+              ) : null}
+              {shouldPromptInvoiceDownload ? (
+                <button
+                  type="button"
+                  onClick={handleStartInvoiceDownloads}
+                  className={`secondary-button ${loading ? 'disabled' : ''}`}
+                  disabled={loading}
+                >
+                  Download invoices
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : viewMode === 'invoices' ? (
+          <section className="status-block">
+            <div className="highlight-card">
+              <div className="highlight-label">Failed invoices</div>
+              <div className="highlight-value">{invoiceFailures.length}</div>
+              <div className="helper-text">
+                Review each order and retry downloads once you have enabled multiple downloads in your browser.
+              </div>
+            </div>
+            {invoiceFailures.length ? (
+              <div className="invoice-failure-list">
+                {invoiceFailures.map((failure) => (
+                  <div key={failure.orderId} className="invoice-failure-item">
+                    <div className="invoice-failure-row">
+                      <span>{failure.orderId}</span>
+                      {failure.orderDetailsUrl ? (
+                        <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
+                          Open order
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="invoice-failure-message">{failure.message}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="helper-text">No failed invoices right now.</div>
+            )}
+            <div className="view-actions">
+              {canRetryFailedInvoices ? (
+                <button
+                  type="button"
+                  className={`secondary-button ${loading ? 'disabled' : ''}`}
+                  onClick={handleRetryFailedInvoices}
+                  disabled={loading}
+                >
+                  Retry failed invoices
+                </button>
+              ) : null}
+            </div>
           </section>
         ) : isEmptyResult && !showFilterForm ? (
           <section className="status-block">
@@ -860,7 +1001,8 @@ const App = () => {
                 <div>
                   <p className="hero-title">No orders found</p>
                   <p className="hero-copy">
-                    We couldn&apos;t find any orders for this range. Try a different timeframe or refresh the Orders page.
+                    Amazon shows no orders for this timeframe. Try another range or refresh the Orders page to verify
+                    the filter.
                   </p>
                 </div>
               </div>
@@ -886,6 +1028,11 @@ const App = () => {
           </p>
           {showProgressDetails ? (
             <>
+              {ordersInRange ? (
+                <p className="helper-text" style={{ marginTop: '4px' }}>
+                  Amazon shows {ordersInRange} orders for this timeframe.
+                </p>
+              ) : null}
               <div className="progress-container" style={{ marginTop: '8px' }}>
                 <div className="progress-label">
                   Orders: {ordersCollectedDisplay}/{ordersTotalDisplay}
@@ -909,6 +1056,10 @@ const App = () => {
                   {ordersCollectedDisplay}/{ordersTotalDisplay}
                   {ordersCapSuffix}
                 </dd>
+                <dt>Pages:</dt>
+                <dd>{pagesScraped || '—'}</dd>
+                <dt>ETA:</dt>
+                <dd>{etaLabel ?? '—'}</dd>
                 <dt>Invoices queued:</dt>
                 <dd>{session?.invoicesQueued ?? 0}</dd>
                 <dt>Invoices downloaded:</dt>
@@ -983,8 +1134,9 @@ const App = () => {
           {canDownload && (
             <button
               type="button"
-              onClick={() => session?.orders && downloadCsv(ordersToCsv(session.orders), session.runId)}
-              className="download-button"
+              onClick={handleDownloadCsv}
+              className={`download-button ${loading ? 'disabled' : ''}`}
+              disabled={loading}
             >
               Download CSV
             </button>
@@ -1060,6 +1212,16 @@ const App = () => {
               {invoiceFailures.length > 3 ? (
                 <div className="helper-text">And {invoiceFailures.length - 3} more…</div>
               ) : null}
+              {invoiceFailures.length > 3 ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
+                  onClick={() => setView('invoices')}
+                >
+                  View all failures
+                </button>
+              ) : null}
               {canRetryFailedInvoices ? (
                 <button
                   type="button"
@@ -1075,6 +1237,7 @@ const App = () => {
           ) : null}
         </section>
       )}
+        </div>
     </div>
 
     <footer className="privacy-note sticky-footer">

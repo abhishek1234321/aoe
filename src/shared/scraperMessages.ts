@@ -1,6 +1,7 @@
 import { SCRAPER_MESSAGE_SCOPE } from './constants';
 
 export interface ScraperStartPayload {
+  runId?: string;
   year?: number;
   timeFilterValue?: string;
   timeFilterLabel?: string;

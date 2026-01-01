@@ -229,6 +229,7 @@ const handleStartScrape = ({
     downloadInvoicesRequested: Boolean(downloadInvoices),
     ordersInRange: reuseExistingOrders ? base.ordersInRange : undefined,
     lastInvoiceError: undefined,
+    pagesScraped: reuseExistingOrders ? base.pagesScraped : 0,
     yearFilter: year,
     timeFilterValue,
     timeFilterLabel,
@@ -263,6 +264,9 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
   }
   if (typeof payload.ordersInRange === 'number') {
     changes.ordersInRange = payload.ordersInRange;
+  }
+  if (typeof payload.pagesScraped === 'number') {
+    changes.pagesScraped = payload.pagesScraped;
   }
   if (session.downloadInvoicesRequested && typeof payload.invoicesQueued === 'number') {
     changes.invoicesQueued = payload.invoicesQueued;
@@ -313,14 +317,7 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
     void closeScrapeTab();
   }
 
-  if (
-    session.phase === 'completed' &&
-    !session.invoiceDownloadsStarted &&
-    session.invoicesQueued &&
-    session.downloadInvoicesRequested
-  ) {
-    void startInvoiceDownloads();
-  }
+  // Invoice downloads are triggered explicitly by the user after completion.
   void maybeNotifyCompletion();
 };
 
@@ -813,6 +810,7 @@ browser.runtime.onMessage.addListener((
           return { success: true, data: { state: session } };
         }
         const scrapePayload: ScraperStartPayload = {
+          runId: session.runId,
           year: typedMessage.payload.year,
           timeFilterValue: typedMessage.payload.timeFilterValue,
           timeFilterLabel: typedMessage.payload.timeFilterLabel,
