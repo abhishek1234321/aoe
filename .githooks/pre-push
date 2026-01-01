@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-echo "Running lint, typecheck, and unit tests..."
+echo "Running lint, typecheck, and unit tests before push..."
 npm run lint
 npm run typecheck
 npm run test:ci

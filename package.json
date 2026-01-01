@@ -22,6 +22,7 @@
     "test:ci": "vitest --run",
     "fixtures:check": "vitest --run tests/fixtures.test.ts",
     "e2e": "npm run build && node scripts/prepare-e2e.mjs && playwright test",
+    "e2e:ci": "node scripts/prepare-e2e.mjs && playwright test",
     "e2e:install": "playwright install chromium",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

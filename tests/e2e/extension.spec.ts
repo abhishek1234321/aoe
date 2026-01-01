@@ -138,7 +138,7 @@ test.describe('extension e2e (fixtures)', () => {
     trackPage(popupPage);
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
 
-    await expect(popupPage.getByText('Head to your Amazon.in order history')).toBeVisible();
+    await expect(popupPage.getByText('Open your Amazon Orders page')).toBeVisible();
     await popupPage.close();
     await nonOrderPage.close();
   });
@@ -154,8 +154,9 @@ test.describe('extension e2e (fixtures)', () => {
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
     await ensurePopupReady(popupPage, orderPage);
 
+    await expect(popupPage.locator('#timeFilter option[value="months-3"]')).toBeVisible();
     await popupPage.selectOption('#timeFilter', { value: 'months-3' });
-    await popupPage.getByRole('button', { name: 'Start scrape' }).click();
+    await popupPage.getByRole('button', { name: 'Start export' }).click();
 
     await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
     await expect(popupPage.getByText('Invoices queued:')).toBeVisible();

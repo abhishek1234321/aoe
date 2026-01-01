@@ -23,9 +23,9 @@ Run these before opening a PR:
 - `npm run security:audit`
 
 ## Optional git hook (recommended)
-To catch lint/type issues before committing:
+To catch issues before committing or pushing:
 1. Enable repo hooks: `git config core.hooksPath .githooks`
-2. Ensure the hook is executable: `chmod +x .githooks/pre-commit`
+2. Ensure the hooks are executable: `chmod +x .githooks/pre-commit .githooks/pre-push`
 
 ## E2E tests (fixtures)
 We run extension E2E against local HTML fixtures (not live Amazon pages).
