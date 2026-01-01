@@ -17,13 +17,14 @@ describe('CSV flow (order parser -> CSV)', () => {
   it('converts a parsed order into a CSV row', () => {
     const dom = loadSample('order-single.html');
     const orders = parseOrdersFromDocument(dom.window.document);
-    const csvText = ordersToCsv(orders);
+    const csvText = ordersToCsv(orders, 'https://www.amazon.in');
     const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
     const rows = parsed.data as CsvRow[];
 
     expect(rows).toHaveLength(2);
     expect(rows[0]['Order ID']).toBe('111-1111111-1111111');
-    expect(rows[0]['Invoice URL']).toContain('/your-orders/invoice/popover');
+    expect(rows[0]['Invoice URL']).toContain('https://www.amazon.in/your-orders/invoice/popover');
+    expect(rows[0]['Order Details URL']).toContain('https://www.amazon.in/your-orders/order-details');
     expect(rows[0].Items).toContain('Test Item');
     expect(rows[1]['Order ID']).toBe('Total (non-cancelled)');
   });

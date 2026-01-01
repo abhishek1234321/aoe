@@ -15,7 +15,8 @@ describe('ordersToCsv', () => {
         total: { raw: '₹100.00', amount: 100, currencySymbol: '₹' },
         currency: 'INR',
         itemCount: 2,
-        invoiceUrl: 'https://www.amazon.in/invoice/ORDER-1',
+        invoiceUrl: '/your-orders/invoice/popover?orderId=ORDER-1',
+        orderDetailsUrl: '/your-orders/order-details?orderID=ORDER-1',
         status: 'Delivered',
         shipments: [
           {
@@ -47,13 +48,15 @@ describe('ordersToCsv', () => {
       },
     ];
 
-    const csvText = ordersToCsv(orders);
+    const csvText = ordersToCsv(orders, 'https://www.amazon.in');
     const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
     const rows = parsed.data as CsvRow[];
 
     expect(rows).toHaveLength(3);
     expect(rows[0]['Order ID']).toBe('ORDER-1');
     expect(rows[0].Items).toBe('Item One | Item Two');
+    expect(rows[0]['Order Details URL']).toBe('https://www.amazon.in/your-orders/order-details?orderID=ORDER-1');
+    expect(rows[0]['Invoice URL']).toBe('https://www.amazon.in/your-orders/invoice/popover?orderId=ORDER-1');
     expect(rows[1]['Order ID']).toBe('ORDER-2');
     expect(rows[2]['Order ID']).toBe('Total (non-cancelled)');
     expect(rows[2]['Total Amount']).toBe('₹ 100.00');

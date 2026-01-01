@@ -282,7 +282,8 @@ const App = () => {
     if (!session?.orders) {
       return;
     }
-    downloadCsv(ordersToCsv(session.orders), session.runId);
+    const csvBaseUrl = session.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST;
+    downloadCsv(ordersToCsv(session.orders, csvBaseUrl), session.runId);
     if (shouldPromptInvoiceDownload) {
       await handleStartInvoiceDownloads();
     }
@@ -435,8 +436,10 @@ const App = () => {
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
   const isEmptyResult = session?.phase === 'completed' && (session?.orders?.length ?? 0) === 0;
   const showReset =
-    Boolean(session && session.phase !== 'idle') || session?.ordersCollected || session?.invoicesQueued;
-  const showResetButton = showReset && !(isEmptyResult && !showFilterOverride);
+    Boolean(session && session.phase !== 'idle') ||
+    (session?.ordersCollected ?? 0) > 0 ||
+    (session?.invoicesQueued ?? 0) > 0;
+  const showResetButton = Boolean(showReset && !(isEmptyResult && !showFilterOverride));
   const showProgressDetails = Boolean(session?.phase && session.phase !== 'idle');
   const ordersLimit = session?.ordersLimit ?? MAX_ORDERS_PER_RUN;
   const ordersInRange = session?.ordersInRange;

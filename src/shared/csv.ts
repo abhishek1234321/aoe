@@ -1,17 +1,19 @@
 import Papa from 'papaparse';
+import { resolveAmazonUrl } from './constants';
 import { formatCurrency } from './format';
 import type { OrderSummary } from './types';
 
 const CSV_HEADERS = [
   'Order ID',
   'Order Date',
+  'Items',
+  'Item Count',
   'Buyer Name',
   'Total Amount',
   'Currency',
-  'Item Count',
   'Shipment Status',
+  'Order Details URL',
   'Invoice URL',
-  'Items',
 ] as const;
 
 export type CsvRow = Record<(typeof CSV_HEADERS)[number], string>;
@@ -25,17 +27,35 @@ const formatItems = (items: OrderSummary['shipments']) => {
   return flattened.join(' | ');
 };
 
-export const ordersToCsv = (orders: OrderSummary[]) => {
+const formatOrderDetailsUrl = (order: OrderSummary, baseUrl?: string | null) => {
+  if (order.orderDetailsUrl) {
+    return resolveAmazonUrl(order.orderDetailsUrl, baseUrl);
+  }
+  if (order.orderId) {
+    return resolveAmazonUrl(`/your-orders/order-details?orderID=${encodeURIComponent(order.orderId)}`, baseUrl);
+  }
+  return '';
+};
+
+const formatInvoiceUrl = (order: OrderSummary, baseUrl?: string | null) => {
+  if (!order.invoiceUrl) {
+    return '';
+  }
+  return resolveAmazonUrl(order.invoiceUrl, baseUrl);
+};
+
+export const ordersToCsv = (orders: OrderSummary[], baseUrl?: string | null) => {
   const rows: CsvRow[] = orders.map((order) => ({
     'Order ID': order.orderId,
     'Order Date': order.orderDateISO ?? order.orderDateText ?? '',
+    Items: formatItems(order.shipments),
+    'Item Count': String(order.itemCount ?? order.shipments.flatMap((s) => s.items).length),
     'Buyer Name': order.buyerName ?? '',
     'Total Amount': order.total.raw ?? '',
     Currency: order.currency ?? order.total.currencySymbol ?? '',
-    'Item Count': String(order.itemCount ?? order.shipments.flatMap((s) => s.items).length),
     'Shipment Status': order.status ?? order.shipments[0]?.statusPrimary ?? '',
-    'Invoice URL': order.invoiceUrl ?? '',
-    Items: formatItems(order.shipments),
+    'Order Details URL': formatOrderDetailsUrl(order, baseUrl),
+    'Invoice URL': formatInvoiceUrl(order, baseUrl),
   }));
 
   const nonCancelled = orders.filter(
@@ -49,13 +69,14 @@ export const ordersToCsv = (orders: OrderSummary[]) => {
   rows.push({
     'Order ID': 'Total (non-cancelled)',
     'Order Date': '',
+    Items: '',
+    'Item Count': '',
     'Buyer Name': '',
     'Total Amount': formatCurrency(totalSpend, currency),
     Currency: currency,
-    'Item Count': '',
     'Shipment Status': '',
+    'Order Details URL': '',
     'Invoice URL': '',
-    Items: '',
   });
 
   const buyerGroups = new Map<string, OrderSummary[]>();
@@ -73,25 +94,27 @@ export const ordersToCsv = (orders: OrderSummary[]) => {
     const emptyRow: CsvRow = {
       'Order ID': '',
       'Order Date': '',
+      Items: '',
+      'Item Count': '',
       'Buyer Name': '',
       'Total Amount': '',
       Currency: '',
-      'Item Count': '',
       'Shipment Status': '',
+      'Order Details URL': '',
       'Invoice URL': '',
-      Items: '',
     };
     rows.push(emptyRow);
     rows.push({
       'Order ID': 'Buyer summary',
       'Order Date': '',
+      Items: '',
+      'Item Count': '',
       'Buyer Name': '',
       'Total Amount': '',
       Currency: '',
-      'Item Count': '',
       'Shipment Status': '',
+      'Order Details URL': '',
       'Invoice URL': '',
-      Items: '',
     });
     buyerGroups.forEach((groupOrders, buyerName) => {
       const groupNonCancelled = groupOrders.filter(
@@ -106,13 +129,14 @@ export const ordersToCsv = (orders: OrderSummary[]) => {
       rows.push({
         'Order ID': 'Buyer',
         'Order Date': '',
+        Items: groupNonCancelled.length ? `Avg order: ${formatCurrency(avg, groupCurrency)}` : 'Avg order: N/A',
+        'Item Count': String(groupOrders.length),
         'Buyer Name': buyerName,
         'Total Amount': formatCurrency(groupSpend, groupCurrency),
         Currency: groupCurrency,
-        'Item Count': String(groupOrders.length),
         'Shipment Status': `Non-cancelled: ${groupNonCancelled.length}`,
+        'Order Details URL': '',
         'Invoice URL': '',
-        Items: groupNonCancelled.length ? `Avg order: ${formatCurrency(avg, groupCurrency)}` : 'Avg order: N/A',
       });
     });
   }
