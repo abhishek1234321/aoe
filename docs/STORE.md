@@ -35,6 +35,10 @@ Ideal for bookkeeping, budgeting, or archiving your purchases.
 - Screenshots: at least 1, recommended 5.
 - Promo images (optional, recommended): 1280x800, 640x400, 440x280.
 
+To generate screenshots from fixtures:
+- Run `npm run e2e:install` once (Playwright browser).
+- Run `npm run screenshots` to save images into `docs/store/screenshots/`.
+
 ## Store metadata (fill before submission)
 - Support email: abhishek1234321@gmail.com
 - `SUPPORT_EMAIL` is set in `src/shared/constants.ts` to show the email support option in the popup.

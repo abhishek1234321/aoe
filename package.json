@@ -25,6 +25,7 @@
     "e2e": "npm run build:e2e && node scripts/prepare-e2e.mjs && playwright test",
     "e2e:ci": "node scripts/prepare-e2e.mjs && playwright test",
     "e2e:install": "playwright install chromium",
+    "screenshots": "npm run build:e2e && node scripts/prepare-e2e.mjs && node scripts/capture-store-screenshots.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "security:audit": "npm audit --audit-level=high"
