@@ -461,7 +461,11 @@ const App = () => {
     if (remaining <= 0) {
       return null;
     }
-    const elapsedMs = Date.now() - session.startedAt;
+    const updatedAt = session.updatedAt ?? session.startedAt;
+    if (!updatedAt) {
+      return null;
+    }
+    const elapsedMs = updatedAt - session.startedAt;
     if (elapsedMs < 5000) {
       return null;
     }
@@ -470,7 +474,7 @@ const App = () => {
       return null;
     }
     return formatEta(remaining / rate);
-  }, [ordersCollectedDisplay, ordersLimit, ordersTotalDisplay, session?.phase, session?.startedAt]);
+  }, [ordersCollectedDisplay, ordersLimit, ordersTotalDisplay, session?.phase, session?.startedAt, session?.updatedAt]);
   const invoiceFailures = session?.invoiceFailures ?? [];
   const hasInvoiceFailures = invoiceFailures.length > 0;
   const canRetryFailedInvoices = Boolean(session?.phase === 'completed' && hasInvoiceFailures);
