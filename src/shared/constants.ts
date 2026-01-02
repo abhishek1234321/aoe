@@ -20,13 +20,25 @@ export const AMAZON_ORDER_HISTORY_URLS = AMAZON_HOSTS.flatMap((host) =>
 );
 const ALLOW_LOCALHOST_E2E = import.meta.env?.VITE_E2E === 'true';
 
+const normalizeHostname = (hostname: string) => hostname.replace(/^www\./i, '').toLowerCase();
+
 export const getAmazonHostForUrl = (url?: string | null): AmazonHostConfig | null => {
   if (!url) {
     return null;
   }
   try {
     const parsed = new URL(url);
-    return AMAZON_HOSTS.find((host) => host.baseUrl === parsed.origin) ?? null;
+    const parsedHost = normalizeHostname(parsed.hostname);
+    return (
+      AMAZON_HOSTS.find((host) => {
+        try {
+          const hostName = normalizeHostname(new URL(host.baseUrl).hostname);
+          return hostName === parsedHost;
+        } catch {
+          return false;
+        }
+      }) ?? null
+    );
   } catch {
     return null;
   }
@@ -36,7 +48,23 @@ export const getAmazonHostForBaseUrl = (baseUrl?: string | null): AmazonHostConf
   if (!baseUrl) {
     return defaultHost;
   }
-  return AMAZON_HOSTS.find((host) => host.baseUrl === baseUrl) ?? defaultHost;
+  const parsedHost = (() => {
+    try {
+      return normalizeHostname(new URL(baseUrl).hostname);
+    } catch {
+      return '';
+    }
+  })();
+  return (
+    AMAZON_HOSTS.find((host) => {
+      try {
+        const hostName = normalizeHostname(new URL(host.baseUrl).hostname);
+        return hostName === parsedHost;
+      } catch {
+        return false;
+      }
+    }) ?? defaultHost
+  );
 };
 
 export const getOrderHistoryUrl = (urlOrBase?: string | null): string => {

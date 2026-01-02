@@ -11,9 +11,10 @@ const ORDER_CARD_SELECTOR = '.order-card';
 const HEADER_ITEM_SELECTOR = '.order-header__header-list-item';
 const LABEL_TEXT_SELECTOR = '.a-text-caps';
 const LABEL_VALUE_SELECTOR = '.a-size-base';
-const ORDER_ID_SELECTOR = '.yohtmlc-order-id span[dir="ltr"]';
+const ORDER_ID_SELECTOR = '.yohtmlc-order-id span[dir="ltr"], .yohtmlc-order-id span[dir="auto"]';
 const BUYER_NAME_SELECTOR = '.yohtmlc-recipient a, .yohtmlc-recipient span.a-popover-trigger';
 const INVOICE_LINK_TEXT = 'invoice';
+const INVOICE_LINK_TEXT_FALLBACK = 'facture';
 const ORDER_DETAILS_TEXT = 'order details';
 const DELIVERY_BOX_SELECTOR = '.delivery-box';
 const PRIMARY_STATUS_SELECTOR = '.delivery-box__primary-text';
@@ -27,6 +28,7 @@ const DATE_LABELS = ['order placed', 'ordered on'];
 const TOTAL_LABEL = 'total';
 const DATE_FORMATS = ['d MMMM yyyy', 'dd MMMM yyyy', 'MMMM d, yyyy', 'MMMM dd, yyyy', 'MMM d, yyyy', 'MMM dd, yyyy'];
 const ASIN_REGEX = /\/dp\/([A-Z0-9]{10})/i;
+const ORDER_ID_REGEX = /\b\d{3}-\d{7}-\d{7}\b/;
 
 export const parseOrdersFromDocument = (doc: Document): OrderSummary[] => {
   const cards = Array.from(doc.querySelectorAll<HTMLDivElement>(ORDER_CARD_SELECTOR));
@@ -36,7 +38,7 @@ export const parseOrdersFromDocument = (doc: Document): OrderSummary[] => {
 };
 
 const parseOrderCard = (card: Element): OrderSummary | null => {
-  const orderId = getTrimmedText(card.querySelector(ORDER_ID_SELECTOR));
+  const orderId = extractOrderId(card);
   if (!orderId) {
     return null;
   }
@@ -86,18 +88,48 @@ const getLabeledValue = (card: Element, labels: string | string[]): string | nul
   return null;
 };
 
+const extractOrderId = (card: Element): string | null => {
+  const direct = getTrimmedText(card.querySelector(ORDER_ID_SELECTOR));
+  if (direct) {
+    return direct;
+  }
+  const container = card.querySelector('.yohtmlc-order-id');
+  if (container) {
+    const spans = Array.from(container.querySelectorAll('span'))
+      .map((span) => getTrimmedText(span))
+      .filter(Boolean);
+    if (spans.length) {
+      return spans[spans.length - 1] ?? null;
+    }
+  }
+  const fallbackText = getTrimmedText(container ?? card);
+  const match = fallbackText ? fallbackText.match(ORDER_ID_REGEX) : null;
+  return match?.[0] ?? null;
+};
+
 const extractInvoiceUrl = (card: Element): string | undefined => {
-  const invoiceLink = Array.from(card.querySelectorAll<HTMLAnchorElement>('a')).find((anchor) =>
-    (anchor.textContent || '').trim().toLowerCase().includes(INVOICE_LINK_TEXT),
-  );
+  const invoiceLink = Array.from(card.querySelectorAll<HTMLAnchorElement>('a')).find((anchor) => {
+    const text = (anchor.textContent || '').trim().toLowerCase();
+    const href = (anchor.getAttribute('href') || '').toLowerCase();
+    return (
+      text.includes(INVOICE_LINK_TEXT) ||
+      text.includes(INVOICE_LINK_TEXT_FALLBACK) ||
+      href.includes('invoice')
+    );
+  });
   return invoiceLink?.getAttribute('href') || undefined;
 };
 
 const extractOrderDetailsUrl = (card: Element): string | undefined => {
-  const detailsLink = Array.from(card.querySelectorAll<HTMLAnchorElement>('a')).find((anchor) =>
+  const links = Array.from(card.querySelectorAll<HTMLAnchorElement>('a'));
+  const detailsLink = links.find((anchor) =>
     (anchor.textContent || '').trim().toLowerCase().includes(ORDER_DETAILS_TEXT),
   );
-  return detailsLink?.getAttribute('href') || undefined;
+  if (detailsLink) {
+    return detailsLink.getAttribute('href') || undefined;
+  }
+  const hrefLink = links.find((anchor) => (anchor.getAttribute('href') || '').toLowerCase().includes('/order-details'));
+  return hrefLink?.getAttribute('href') || undefined;
 };
 
 const extractShipments = (card: Element): OrderShipment[] => {

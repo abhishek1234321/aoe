@@ -64,4 +64,30 @@ describe('order parser', () => {
     expect(orders[0].orderDateISO).toBe('2025-06-03');
     expect(orders[0].total.currencySymbol).toBe('£');
   });
+
+  it('parses localized invoice and order details links', () => {
+    const dom = new JSDOM(`
+      <div class="order-card">
+        <div class="order-header__header-list-item">
+          <span class="a-text-caps">Order placed</span>
+          <span class="a-size-base">3 June 2025</span>
+        </div>
+        <div class="order-header__header-list-item">
+          <span class="a-text-caps">Total</span>
+          <span class="a-size-base">£12.34</span>
+        </div>
+        <div class="yohtmlc-order-id">
+          <span class="a-text-caps">Order #</span>
+          <span class="a-size-base">701-0000000-0000009</span>
+        </div>
+        <a href="/your-orders/order-details?orderID=701-0000000-0000009">Détails de la commande</a>
+        <a href="/your-orders/invoice/popover?orderId=701-0000000-0000009">Facture</a>
+      </div>
+    `);
+    const orders = parseOrdersFromDocument(dom.window.document);
+    expect(orders).toHaveLength(1);
+    expect(orders[0].orderId).toBe('701-0000000-0000009');
+    expect(orders[0].orderDetailsUrl).toContain('/your-orders/order-details');
+    expect(orders[0].invoiceUrl).toContain('/your-orders/invoice');
+  });
 });
