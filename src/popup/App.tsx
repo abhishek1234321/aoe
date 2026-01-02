@@ -4,6 +4,8 @@ import {
   DEFAULT_AMAZON_HOST,
   MAX_ORDERS_PER_RUN,
   SUPPORT_EMAIL,
+  SUPPORTED_AMAZON_HOSTS,
+  getAmazonHostForLocale,
   getAmazonHostForUrl,
   getOrderHistoryUrl,
 } from '@shared/constants';
@@ -51,6 +53,11 @@ const useSessionState = () => {
   return { session, setSession, loading, setLoading, error, setError, refresh };
 };
 
+type LocalSettings = {
+  notifyOnCompletion?: boolean;
+  amazonHost?: string;
+};
+
 const formatTimestamp = (timestamp?: number) => {
   if (!timestamp) {
     return '—';
@@ -95,6 +102,7 @@ const App = () => {
   const supportEmail = SUPPORT_EMAIL.trim();
   const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
+  const [preferredAmazonHost, setPreferredAmazonHost] = useState<string | null>(null);
   const showNotificationTest = import.meta.env.DEV;
 
   useEffect(() => {
@@ -152,12 +160,20 @@ const App = () => {
     };
   }, [setSession]);
 
+  const saveSettings = useCallback(async (updates: LocalSettings) => {
+    const stored = await browser.storage.local.get('aoe:settings');
+    const settings = (stored['aoe:settings'] as LocalSettings | undefined) ?? {};
+    await browser.storage.local.set({ 'aoe:settings': { ...settings, ...updates } });
+  }, []);
+
   useEffect(() => {
     void browser.storage.local.get('aoe:settings').then((stored) => {
-      const next = (stored['aoe:settings'] as { notifyOnCompletion?: boolean } | undefined)
-        ?.notifyOnCompletion;
-      if (typeof next === 'boolean') {
-        setNotifyOnCompletion(next);
+      const settings = stored['aoe:settings'] as LocalSettings | undefined;
+      if (typeof settings?.notifyOnCompletion === 'boolean') {
+        setNotifyOnCompletion(settings.notifyOnCompletion);
+      }
+      if (typeof settings?.amazonHost === 'string') {
+        setPreferredAmazonHost(settings.amazonHost);
       }
     });
   }, []);
@@ -654,7 +670,21 @@ const App = () => {
   }, [availableFilters]);
 
   if (isOnOrderPage === false) {
-    const ordersUrl = getOrderHistoryUrl(activeUrl ?? session?.amazonHost ?? DEFAULT_AMAZON_HOST);
+    const supportedHosts = SUPPORTED_AMAZON_HOSTS;
+    const supportedHostSet = new Set(supportedHosts.map((host) => host.baseUrl));
+    const activeHost = getAmazonHostForUrl(activeUrl)?.baseUrl ?? null;
+    const normalizedActiveHost = activeHost && supportedHostSet.has(activeHost) ? activeHost : null;
+    const normalizedPreferredHost =
+      preferredAmazonHost && supportedHostSet.has(preferredAmazonHost)
+        ? preferredAmazonHost
+        : null;
+    const localeHost = getAmazonHostForLocale(
+      navigator.language,
+      supportedHosts,
+    ).baseUrl;
+    const resolvedHost =
+      normalizedActiveHost ?? normalizedPreferredHost ?? localeHost ?? DEFAULT_AMAZON_HOST;
+    const ordersUrl = getOrderHistoryUrl(resolvedHost);
     return (
       <div className="popup-container">
         <header className="popup-header sticky-header">
@@ -679,6 +709,25 @@ const App = () => {
           <a href={ordersUrl} target="_blank" rel="noreferrer" className="hero-cta">
             Open order history (new tab)
           </a>
+          <label className="field-label" style={{ marginTop: '12px' }} htmlFor="marketplace">
+            Marketplace
+          </label>
+          <select
+            id="marketplace"
+            value={resolvedHost}
+            onChange={async (event) => {
+              const next = event.target.value;
+              setPreferredAmazonHost(next);
+              await saveSettings({ amazonHost: next });
+            }}
+            className="select-input"
+          >
+            {supportedHosts.map((host) => (
+              <option key={host.key} value={host.baseUrl}>
+                {host.key}
+              </option>
+            ))}
+          </select>
           <p className="hero-hint">
             Already on Orders? Refresh the tab, then reopen this extension.
           </p>
@@ -807,9 +856,7 @@ const App = () => {
                           }
                         }
                         setNotifyOnCompletion(next);
-                        await browser.storage.local.set({
-                          'aoe:settings': { notifyOnCompletion: next },
-                        });
+                        await saveSettings({ notifyOnCompletion: next });
                         await sendRuntimeMessage({
                           type: 'SET_SETTINGS',
                           payload: { notifyOnCompletion: next },

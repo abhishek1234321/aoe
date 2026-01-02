@@ -30,6 +30,10 @@ let invoiceFailureMap = new Map<string, InvoiceFailure>();
 
 const SESSION_KEY = 'aoe:scrape-session';
 const SETTINGS_KEY = 'aoe:settings';
+type LocalSettings = {
+  notifyOnCompletion?: boolean;
+  amazonHost?: string;
+};
 
 const debugLog = (...args: unknown[]) => {
   if (DEBUG_LOGGING) {
@@ -965,7 +969,12 @@ browser.runtime.onMessage.addListener(
       case 'SET_SETTINGS': {
         if (typedMessage.payload && typeof typedMessage.payload.notifyOnCompletion === 'boolean') {
           notifyOnCompletion = typedMessage.payload.notifyOnCompletion;
-          void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
+          void browser.storage.local.get(SETTINGS_KEY).then((stored) => {
+            const settings = (stored[SETTINGS_KEY] as LocalSettings | undefined) ?? {};
+            return browser.storage.local.set({
+              [SETTINGS_KEY]: { ...settings, notifyOnCompletion },
+            });
+          });
           if (notifyOnCompletion) {
             void maybeNotifyCompletion();
           }

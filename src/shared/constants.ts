@@ -19,6 +19,10 @@ export const AMAZON_ORDER_HISTORY_URLS = AMAZON_HOSTS.flatMap((host) =>
   host.orderHistoryPaths.map((path) => `${host.baseUrl}${path}`),
 );
 const ALLOW_LOCALHOST_E2E = import.meta.env?.VITE_E2E === 'true';
+export const SUPPORTED_AMAZON_HOST_KEYS = ['amazon.in', 'amazon.com'] as const;
+export const SUPPORTED_AMAZON_HOSTS = AMAZON_HOSTS.filter((host) =>
+  SUPPORTED_AMAZON_HOST_KEYS.includes(host.key as (typeof SUPPORTED_AMAZON_HOST_KEYS)[number]),
+);
 
 const normalizeHostname = (hostname: string) => hostname.replace(/^www\./i, '').toLowerCase();
 
@@ -65,6 +69,29 @@ export const getAmazonHostForBaseUrl = (baseUrl?: string | null): AmazonHostConf
       }
     }) ?? defaultHost
   );
+};
+
+export const getAmazonHostForLocale = (
+  locale?: string | null,
+  allowedHosts: AmazonHostConfig[] = AMAZON_HOSTS,
+): AmazonHostConfig => {
+  if (!locale) {
+    return allowedHosts[0] ?? defaultHost;
+  }
+  const normalized = locale.toLowerCase();
+  const region = normalized.split(/[-_]/)[1] ?? '';
+  const key =
+    region === 'in'
+      ? 'amazon.in'
+      : region === 'us'
+        ? 'amazon.com'
+        : region === 'ca'
+          ? 'amazon.ca'
+          : region === 'gb' || region === 'uk'
+            ? 'amazon.co.uk'
+            : '';
+  const match = allowedHosts.find((host) => host.key === key);
+  return match ?? allowedHosts[0] ?? defaultHost;
 };
 
 export const getOrderHistoryUrl = (urlOrBase?: string | null): string => {
