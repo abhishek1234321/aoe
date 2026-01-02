@@ -63,7 +63,10 @@ const ensurePopupReady = async (popupPage: Page, orderPage: Page) => {
     await orderPage.bringToFront();
     await popupPage.reload();
     await orderPage.bringToFront();
-    const visible = await popupPage.locator('#timeFilter').isVisible().catch(() => false);
+    const visible = await popupPage
+      .locator('#timeFilter')
+      .isVisible()
+      .catch(() => false);
     if (visible) {
       return;
     }
@@ -84,7 +87,9 @@ test.describe('extension e2e (fixtures)', () => {
       headless,
       slowMo,
       args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
-      recordVideo: recordVideo ? { dir: path.resolve(process.cwd(), 'test-results', 'videos') } : undefined,
+      recordVideo: recordVideo
+        ? { dir: path.resolve(process.cwd(), 'test-results', 'videos') }
+        : undefined,
       viewport: { width: 1280, height: 800 },
     });
     extensionId = await getExtensionId(context);

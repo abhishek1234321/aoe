@@ -3,6 +3,7 @@
 Use this checklist before publishing to the Chrome Web Store or tagging a release.
 
 ## Pre-release
+
 - [ ] Update `CHANGELOG.md` with user-facing changes.
 - [ ] Bump version in `package.json`, `public/manifest.json`, and `public/manifest.e2e.json`.
 - [ ] Verify `docs/privacy.md` and `PRIVACY.md` match the current behavior.
@@ -13,6 +14,7 @@ Use this checklist before publishing to the Chrome Web Store or tagging a releas
 - [ ] Capture/update store assets (icons, screenshots, promo images).
 
 ## Manual QA (suggested)
+
 - [ ] Open amazon.in/com/ca/co.uk Orders page and verify the popup detects context.
 - [ ] Run an export for a small timeframe; verify progress, completion, and CSV download.
 - [ ] Run with "Download invoices" enabled; verify PDFs download and retry flow works for failures.
@@ -22,12 +24,14 @@ Use this checklist before publishing to the Chrome Web Store or tagging a releas
 - [ ] Validate long-history messaging: confirm the 1,000-order cap and guidance on reruns.
 
 ## Store submission
+
 - [ ] Ensure `DEBUG_LOGGING` is false in production builds.
 - [ ] Confirm optional permissions are only requested on user action.
 - [ ] Publish `docs/privacy.md` to a public URL and update `docs/STORE.md`.
 - [ ] Verify host permissions match supported locales.
 
 ## Post-release
+
 - [ ] Tag the release in Git with the same version (e.g., `v0.1.1`).
 - [ ] Archive new fixture snapshots if selectors changed.
 - [ ] Open a tracking issue for any known post-release bugs.

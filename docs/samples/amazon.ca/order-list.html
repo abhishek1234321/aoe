@@ -1,130 +1,151 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Amazon.ca Orders List Sample</title>
-</head>
-<body>
-  <div class="your-orders-content-container__content js-yo-main-content">
-    <div class="a-row a-spacing-base">
-      <form class="js-time-filter-form">
-        <label for="time-filter" class="time-filter__label">
-          <span class="num-orders">2 orders</span> placed in
-        </label>
-        <select name="timeFilter" id="time-filter">
-          <option value="last30">last 30 days</option>
-          <option value="months-3" selected>past 3 months</option>
-          <option value="year-2025">2025</option>
-          <option value="year-2024">2024</option>
-        </select>
-      </form>
-    </div>
-
-    <div class="order-card js-order-card">
-      <div class="a-box a-color-offset-background order-header">
-        <ul class="order-header__header-list" role="presentation">
-          <li class="order-header__header-list-item" role="presentation">
-            <span class="a-text-caps">Order placed</span>
-            <span class="a-size-base">June 3, 2025</span>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <span class="a-text-caps">Total</span>
-            <span class="a-size-base">$44.04</span>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <div class="yohtmlc-recipient">
-              <span class="a-text-caps">Ship to</span>
-              <span class="a-popover-trigger">Person A</span>
-            </div>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <div class="yohtmlc-order-id">
-              <span class="a-text-caps">Order #</span>
-              <span class="a-size-base" dir="ltr">701-0000000-0000001</span>
-            </div>
-          </li>
-          <li class="order-header__header-list-item yohtmlc-order-level-connections" role="presentation">
-            <a class="a-link-normal" href="/your-orders/order-details?orderID=701-0000000-0000001">View order details</a>
-            <i class="a-icon a-icon-text-separator" role="img"></i>
-            <a class="a-link-normal" href="/gp/css/summary/print.html?orderID=701-0000000-0000001">
-              View invoice
-            </a>
-          </li>
-        </ul>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Amazon.ca Orders List Sample</title>
+  </head>
+  <body>
+    <div class="your-orders-content-container__content js-yo-main-content">
+      <div class="a-row a-spacing-base">
+        <form class="js-time-filter-form">
+          <label for="time-filter" class="time-filter__label">
+            <span class="num-orders">2 orders</span> placed in
+          </label>
+          <select name="timeFilter" id="time-filter">
+            <option value="last30">last 30 days</option>
+            <option value="months-3" selected>past 3 months</option>
+            <option value="year-2025">2025</option>
+            <option value="year-2024">2024</option>
+          </select>
+        </form>
       </div>
-      <div class="a-box delivery-box">
-        <div class="a-box-inner">
-          <div class="yohtmlc-shipment-status-primaryText">
-            <span class="a-size-medium delivery-box__primary-text">Delivered June 5, 2025</span>
-          </div>
-          <div class="delivery-box__secondary-text">Delivered</div>
-          <div class="item-box">
-            <div class="product-image">
-              <a class="a-link-normal" href="/dp/CA000001">
-                <img alt="Sample Item One" src="https://example.com/item-1.jpg" />
+
+      <div class="order-card js-order-card">
+        <div class="a-box a-color-offset-background order-header">
+          <ul class="order-header__header-list" role="presentation">
+            <li class="order-header__header-list-item" role="presentation">
+              <span class="a-text-caps">Order placed</span>
+              <span class="a-size-base">June 3, 2025</span>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <span class="a-text-caps">Total</span>
+              <span class="a-size-base">$44.04</span>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <div class="yohtmlc-recipient">
+                <span class="a-text-caps">Ship to</span>
+                <span class="a-popover-trigger">Person A</span>
+              </div>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <div class="yohtmlc-order-id">
+                <span class="a-text-caps">Order #</span>
+                <span class="a-size-base" dir="ltr">701-0000000-0000001</span>
+              </div>
+            </li>
+            <li
+              class="order-header__header-list-item yohtmlc-order-level-connections"
+              role="presentation"
+            >
+              <a class="a-link-normal" href="/your-orders/order-details?orderID=701-0000000-0000001"
+                >View order details</a
+              >
+              <i class="a-icon a-icon-text-separator" role="img"></i>
+              <a
+                class="a-link-normal"
+                href="/gp/css/summary/print.html?orderID=701-0000000-0000001"
+              >
+                View invoice
               </a>
+            </li>
+          </ul>
+        </div>
+        <div class="a-box delivery-box">
+          <div class="a-box-inner">
+            <div class="yohtmlc-shipment-status-primaryText">
+              <span class="a-size-medium delivery-box__primary-text">Delivered June 5, 2025</span>
             </div>
-            <div class="yohtmlc-product-title">
-              <a class="a-link-normal" href="/dp/CA000001">Sample Item One</a>
+            <div class="delivery-box__secondary-text">Delivered</div>
+            <div class="item-box">
+              <div class="product-image">
+                <a class="a-link-normal" href="/dp/CA000001">
+                  <img alt="Sample Item One" src="https://example.com/item-1.jpg" />
+                </a>
+              </div>
+              <div class="yohtmlc-product-title">
+                <a class="a-link-normal" href="/dp/CA000001">Sample Item One</a>
+              </div>
+            </div>
+            <div class="yohtmlc-item-level-connections">
+              <a
+                class="a-link-normal"
+                href="/gp/your-account/ship-track?orderId=701-0000000-0000001"
+                >Track package</a
+              >
             </div>
           </div>
-          <div class="yohtmlc-item-level-connections">
-            <a class="a-link-normal" href="/gp/your-account/ship-track?orderId=701-0000000-0000001">Track package</a>
+        </div>
+      </div>
+
+      <div class="order-card js-order-card">
+        <div class="a-box a-color-offset-background order-header">
+          <ul class="order-header__header-list" role="presentation">
+            <li class="order-header__header-list-item" role="presentation">
+              <span class="a-text-caps">Order placed</span>
+              <span class="a-size-base">May 18, 2024</span>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <span class="a-text-caps">Total</span>
+              <span class="a-size-base">$19.99</span>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <div class="yohtmlc-recipient">
+                <span class="a-text-caps">Ship to</span>
+                <span class="a-popover-trigger">Person B</span>
+              </div>
+            </li>
+            <li class="order-header__header-list-item" role="presentation">
+              <div class="yohtmlc-order-id">
+                <span class="a-text-caps">Order #</span>
+                <span class="a-size-base" dir="ltr">701-0000000-0000002</span>
+              </div>
+            </li>
+            <li
+              class="order-header__header-list-item yohtmlc-order-level-connections"
+              role="presentation"
+            >
+              <a class="a-link-normal" href="/your-orders/order-details?orderID=701-0000000-0000002"
+                >View order details</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="a-box delivery-box">
+          <div class="a-box-inner">
+            <div class="yohtmlc-shipment-status-primaryText">
+              <span class="a-size-medium delivery-box__primary-text">Cancelled</span>
+            </div>
+            <div class="delivery-box__secondary-text">Refunded</div>
+            <div class="item-box">
+              <div class="product-image">
+                <a class="a-link-normal" href="/dp/CA000002">
+                  <img alt="Sample Item Two" src="https://example.com/item-2.jpg" />
+                </a>
+              </div>
+              <div class="yohtmlc-product-title">
+                <a class="a-link-normal" href="/dp/CA000002">Sample Item Two</a>
+              </div>
+            </div>
+            <div class="yohtmlc-item-level-connections">
+              <a
+                class="a-link-normal"
+                href="/gp/your-account/ship-track?orderId=701-0000000-0000002"
+                >Track package</a
+              >
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="order-card js-order-card">
-      <div class="a-box a-color-offset-background order-header">
-        <ul class="order-header__header-list" role="presentation">
-          <li class="order-header__header-list-item" role="presentation">
-            <span class="a-text-caps">Order placed</span>
-            <span class="a-size-base">May 18, 2024</span>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <span class="a-text-caps">Total</span>
-            <span class="a-size-base">$19.99</span>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <div class="yohtmlc-recipient">
-              <span class="a-text-caps">Ship to</span>
-              <span class="a-popover-trigger">Person B</span>
-            </div>
-          </li>
-          <li class="order-header__header-list-item" role="presentation">
-            <div class="yohtmlc-order-id">
-              <span class="a-text-caps">Order #</span>
-              <span class="a-size-base" dir="ltr">701-0000000-0000002</span>
-            </div>
-          </li>
-          <li class="order-header__header-list-item yohtmlc-order-level-connections" role="presentation">
-            <a class="a-link-normal" href="/your-orders/order-details?orderID=701-0000000-0000002">View order details</a>
-          </li>
-        </ul>
-      </div>
-      <div class="a-box delivery-box">
-        <div class="a-box-inner">
-          <div class="yohtmlc-shipment-status-primaryText">
-            <span class="a-size-medium delivery-box__primary-text">Cancelled</span>
-          </div>
-          <div class="delivery-box__secondary-text">Refunded</div>
-          <div class="item-box">
-            <div class="product-image">
-              <a class="a-link-normal" href="/dp/CA000002">
-                <img alt="Sample Item Two" src="https://example.com/item-2.jpg" />
-              </a>
-            </div>
-            <div class="yohtmlc-product-title">
-              <a class="a-link-normal" href="/dp/CA000002">Sample Item Two</a>
-            </div>
-          </div>
-          <div class="yohtmlc-item-level-connections">
-            <a class="a-link-normal" href="/gp/your-account/ship-track?orderId=701-0000000-0000002">Track package</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
+  </body>
 </html>

@@ -6,7 +6,9 @@ export const formatCurrency = (
   if (amount === null || amount === undefined || !Number.isFinite(amount)) {
     return '';
   }
-  const locale = options?.locale ?? (typeof navigator !== 'undefined' ? navigator.languages?.[0] ?? navigator.language : 'en-IN');
+  const locale =
+    options?.locale ??
+    (typeof navigator !== 'undefined' ? (navigator.languages?.[0] ?? navigator.language) : 'en-IN');
   try {
     if (options?.currencyCode) {
       return new Intl.NumberFormat(locale, {

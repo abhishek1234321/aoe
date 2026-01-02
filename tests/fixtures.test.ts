@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 const samplesRoot = path.resolve(__dirname, '..', 'docs', 'samples');
 const MAX_BYTES = 50 * 1024;
-const DISALLOWED_PATTERNS = [/<script/i, /<style/i, /<link/i, /<meta(?!\s+charset=)/i, /amazon-adsystem/i];
+const DISALLOWED_PATTERNS = [
+  /<script/i,
+  /<style/i,
+  /<link/i,
+  /<meta(?!\s+charset=)/i,
+  /amazon-adsystem/i,
+];
 
 const collectHtmlFiles = (dir: string): string[] => {
   const entries = fs.readdirSync(dir, { withFileTypes: true });

@@ -48,7 +48,8 @@ export const applyTimeFilter = (
     return { changed: false, matched: false };
   }
 
-  const targetValue = filterValue ?? (fallbackYear ? `${YEAR_OPTION_PREFIX}${fallbackYear}` : undefined);
+  const targetValue =
+    filterValue ?? (fallbackYear ? `${YEAR_OPTION_PREFIX}${fallbackYear}` : undefined);
   if (!targetValue) {
     return { changed: false, matched: false };
   }

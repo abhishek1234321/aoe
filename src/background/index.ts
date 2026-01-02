@@ -116,19 +116,25 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
     setInvoiceFailures(changes.invoiceFailures);
   }
   const mergedOrders =
-    changes.orders && changes.orders.length ? mergeOrders(session.orders, changes.orders) : session.orders;
+    changes.orders && changes.orders.length
+      ? mergeOrders(session.orders, changes.orders)
+      : session.orders;
   const ordersCount =
     typeof changes.ordersCollected === 'number'
       ? Math.min(changes.ordersCollected, session.ordersLimit)
       : mergedOrders.length;
   const nextInvoices =
-    typeof changes.invoicesQueued === 'number' ? Math.max(changes.invoicesQueued, 0) : session.invoicesQueued;
+    typeof changes.invoicesQueued === 'number'
+      ? Math.max(changes.invoicesQueued, 0)
+      : session.invoicesQueued;
   const nextInvoicesDownloaded =
     typeof changes.invoicesDownloaded === 'number'
       ? Math.max(changes.invoicesDownloaded, 0)
-      : session.invoicesDownloaded ?? 0;
+      : (session.invoicesDownloaded ?? 0);
   const nextInvoiceErrors =
-    typeof changes.invoiceErrors === 'number' ? Math.max(changes.invoiceErrors, 0) : session.invoiceErrors ?? 0;
+    typeof changes.invoiceErrors === 'number'
+      ? Math.max(changes.invoiceErrors, 0)
+      : (session.invoiceErrors ?? 0);
 
   session = {
     ...session,
@@ -138,16 +144,21 @@ const updateSession = (changes: Partial<ScrapeSessionSnapshot>) => {
     invoicesQueued: nextInvoices,
     invoicesDownloaded: nextInvoicesDownloaded,
     invoiceErrors: nextInvoiceErrors,
-    invoiceDownloadsStarted: changes.invoiceDownloadsStarted ?? session.invoiceDownloadsStarted ?? false,
+    invoiceDownloadsStarted:
+      changes.invoiceDownloadsStarted ?? session.invoiceDownloadsStarted ?? false,
     downloadInvoicesRequested:
       typeof changes.downloadInvoicesRequested === 'boolean'
         ? changes.downloadInvoicesRequested
-        : session.downloadInvoicesRequested ?? false,
+        : (session.downloadInvoicesRequested ?? false),
     notifiedAt:
-      typeof changes.notifiedAt === 'number' ? changes.notifiedAt : session.notifiedAt ?? undefined,
+      typeof changes.notifiedAt === 'number'
+        ? changes.notifiedAt
+        : (session.notifiedAt ?? undefined),
     updatedAt: Date.now(),
     hasMorePages:
-      typeof changes.hasMorePages === 'boolean' ? changes.hasMorePages : session.hasMorePages ?? undefined,
+      typeof changes.hasMorePages === 'boolean'
+        ? changes.hasMorePages
+        : (session.hasMorePages ?? undefined),
   };
   void persistSession();
 };
@@ -219,7 +230,9 @@ const handleStartScrape = ({
     amazonHost,
   });
   invoiceFailureMap.clear();
-  const base = reuseExistingOrders ? { ...session, orders: session.orders ?? [] } : createEmptySession();
+  const base = reuseExistingOrders
+    ? { ...session, orders: session.orders ?? [] }
+    : createEmptySession();
   const runId = base.runId || buildRunId();
   const existingOrders = base.orders ?? [];
   const resolvedHost = amazonHost ?? base.amazonHost ?? DEFAULT_AMAZON_HOST;
@@ -366,7 +379,10 @@ const getActiveOrLastOrderTab = async () => {
 
 if (ALLOW_E2E) {
   browser.tabs.onActivated.addListener(({ tabId }) => {
-    void browser.tabs.get(tabId).then(recordOrderHistoryTab).catch(() => undefined);
+    void browser.tabs
+      .get(tabId)
+      .then(recordOrderHistoryTab)
+      .catch(() => undefined);
   });
   browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete') {
@@ -395,7 +411,8 @@ const getFilterFallback = (count = 3): TimeFilterOption[] => {
   ];
 };
 
-const resolveSessionUrl = (href: string) => resolveAmazonUrl(href, session.amazonHost ?? DEFAULT_AMAZON_HOST);
+const resolveSessionUrl = (href: string) =>
+  resolveAmazonUrl(href, session.amazonHost ?? DEFAULT_AMAZON_HOST);
 
 const buildInvoiceQueue = (
   onlyOrderIds?: string[],
@@ -441,7 +458,10 @@ const fetchInvoiceDownloadUrl = async (invoiceUrl: string) => {
   if (selected?.href) {
     return resolveSessionUrl(selected.href);
   }
-  if (absoluteUrl.toLowerCase().includes('.pdf') || absoluteUrl.toLowerCase().includes('print.html')) {
+  if (
+    absoluteUrl.toLowerCase().includes('.pdf') ||
+    absoluteUrl.toLowerCase().includes('print.html')
+  ) {
     return absoluteUrl;
   }
   throw new Error('No invoice link found in invoice response');
@@ -500,7 +520,11 @@ const clearInvoiceFailure = (orderId: string) => {
   return getInvoiceFailures();
 };
 
-const processInvoiceTask = async (task: { orderId: string; invoiceUrl: string; orderDetailsUrl?: string }) => {
+const processInvoiceTask = async (task: {
+  orderId: string;
+  invoiceUrl: string;
+  orderDetailsUrl?: string;
+}) => {
   try {
     const downloadUrl = await fetchInvoiceDownloadUrl(task.invoiceUrl);
     await downloadInvoice(downloadUrl, task.orderId);
@@ -556,7 +580,9 @@ const startInvoiceDownloads = async (onlyOrderIds?: string[]) => {
     lastInvoiceOrderUrl: undefined,
     invoiceFailures: [],
     invoiceDownloadsStarted: true,
-    message: tasks.length ? `Starting invoice downloads (${tasks.length})...` : 'No invoices to download.',
+    message: tasks.length
+      ? `Starting invoice downloads (${tasks.length})...`
+      : 'No invoices to download.',
   });
 
   if (!tasks.length) {
@@ -599,8 +625,7 @@ const updateBadge = () => {
   const lastUpdate = session.completedAt ?? session.updatedAt;
   const shouldClearBecauseAcknowledged =
     session.phase !== 'running' && lastUpdate && acknowledged >= lastUpdate;
-  const shouldClear =
-    session.phase !== 'running' && lastUpdate && now - lastUpdate > 120000;
+  const shouldClear = session.phase !== 'running' && lastUpdate && now - lastUpdate > 120000;
   if (shouldClear || shouldClearBecauseAcknowledged || session.phase === 'idle') {
     void browser.action.setBadgeText({ text: '' });
     void browser.action.setTitle({ title: 'Amazon Order Extractor' });
@@ -627,7 +652,9 @@ const updateBadge = () => {
   } else if (session.phase === 'completed') {
     const count = session.orders.length;
     void browser.action.setTitle({
-      title: count ? `Amazon Order Extractor — Completed (${count} orders)` : 'Amazon Order Extractor — No orders found',
+      title: count
+        ? `Amazon Order Extractor — Completed (${count} orders)`
+        : 'Amazon Order Extractor — No orders found',
     });
   } else if (session.phase === 'error') {
     void browser.action.setTitle({ title: 'Amazon Order Extractor — Error' });
@@ -659,7 +686,10 @@ const maybeNotifyCompletion = async () => {
       type: 'basic',
       iconUrl: 'icons/icon-128.png',
       title: 'Amazon Order Extractor',
-      message: count === 0 ? 'No orders found for the selected range.' : `Export complete: ${count} orders ready.`,
+      message:
+        count === 0
+          ? 'No orders found for the selected range.'
+          : `Export complete: ${count} orders ready.`,
     });
     debugLog('Notification created', { notificationId });
     updateSession({ notifiedAt: Date.now() });
@@ -769,181 +799,191 @@ const triggerContentScraper = async (payload: ScraperStartPayload) => {
   }
 };
 
-browser.runtime.onMessage.addListener((
-  message: unknown,
-  sender: browser.Runtime.MessageSender,
-): Promise<RuntimeResponse<unknown>> => {
-  debugLog('runtime message received', message);
-  if (!isAuthorizedSender(sender)) {
-    return Promise.resolve({ success: false, error: 'Unauthorized sender' });
-  }
-  if (!message || typeof message !== 'object' || !('type' in message)) {
-    return Promise.resolve({ success: false, error: 'Invalid message' });
-  }
-
-  const typedMessage = message as RuntimeMessage;
-
-  switch (typedMessage.type) {
-    case 'GET_STATE':
-      if (session.phase !== 'running') {
-        badgeAcknowledgedAt = Date.now();
-      }
-      updateBadge();
-      return Promise.resolve({ success: true, data: { state: session } });
-
-    case 'GET_CONTEXT': {
-      if (session.phase !== 'running') {
-        badgeAcknowledgedAt = Date.now();
-      }
-      updateBadge();
-      return getActiveOrLastOrderTab().then((tab) => {
-        const host = getAmazonHostForUrl(tab?.url ?? null);
-        return {
-          success: true,
-          data: {
-            state: session,
-            isSupported: isSupportedAmazonUrl(tab?.url ?? null),
-            url: tab?.url,
-            amazonHost: host?.baseUrl ?? session.amazonHost ?? DEFAULT_AMAZON_HOST,
-          },
-        };
-      });
+browser.runtime.onMessage.addListener(
+  (message: unknown, sender: browser.Runtime.MessageSender): Promise<RuntimeResponse<unknown>> => {
+    debugLog('runtime message received', message);
+    if (!isAuthorizedSender(sender)) {
+      return Promise.resolve({ success: false, error: 'Unauthorized sender' });
+    }
+    if (!message || typeof message !== 'object' || !('type' in message)) {
+      return Promise.resolve({ success: false, error: 'Invalid message' });
     }
 
-    case 'GET_AVAILABLE_FILTERS': {
-      return getActiveOrLastOrderTab()
-        .then(async (tab) => {
-          if (!tab?.id || !isSupportedAmazonUrl(tab.url)) {
-            return { success: true, data: { filters: getFilterFallback() } };
-          }
-          try {
-            const response = await browser.tabs.sendMessage(tab.id, {
-              scope: SCRAPER_MESSAGE_SCOPE,
-              command: 'GET_FILTERS',
-            });
-            const filters = (response as { filters?: unknown } | undefined)?.filters;
-            if (Array.isArray(filters) && filters.length) {
-              return { success: true, data: { filters: filters as TimeFilterOption[] } };
-            }
-          } catch (error) {
-            console.warn('Failed to query years from content script', error);
-          }
-          return { success: true, data: { filters: getFilterFallback() } };
-        })
-        .catch(() => ({ success: true, data: { filters: getFilterFallback() } }));
-    }
+    const typedMessage = message as RuntimeMessage;
 
-    case 'START_SCRAPE': {
-      if (session.phase === 'running') {
-        return Promise.resolve({ success: false, error: 'Export is already running' });
-      }
-      return getActiveAmazonHost().then((amazonHost) => {
-        const startState = handleStartScrape({
-          year: typedMessage.payload.year,
-          timeFilterValue: typedMessage.payload.timeFilterValue,
-          timeFilterLabel: typedMessage.payload.timeFilterLabel,
-          downloadInvoices: typedMessage.payload.downloadInvoices,
-          reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
-          amazonHost,
+    switch (typedMessage.type) {
+      case 'GET_STATE':
+        if (session.phase !== 'running') {
+          badgeAcknowledgedAt = Date.now();
+        }
+        updateBadge();
+        return Promise.resolve({ success: true, data: { state: session } });
+
+      case 'GET_CONTEXT': {
+        if (session.phase !== 'running') {
+          badgeAcknowledgedAt = Date.now();
+        }
+        updateBadge();
+        return getActiveOrLastOrderTab().then((tab) => {
+          const host = getAmazonHostForUrl(tab?.url ?? null);
+          return {
+            success: true,
+            data: {
+              state: session,
+              isSupported: isSupportedAmazonUrl(tab?.url ?? null),
+              url: tab?.url,
+              amazonHost: host?.baseUrl ?? session.amazonHost ?? DEFAULT_AMAZON_HOST,
+            },
+          };
         });
-        if (typedMessage.payload.reuseExistingOrders) {
-          updateSession({
-            phase: 'completed',
-            ordersCollected: session.orders.length,
-          });
-          if (typedMessage.payload.downloadInvoices) {
-            void startInvoiceDownloads();
-          }
-          return { success: true, data: { state: session } };
-        }
-        const scrapePayload: ScraperStartPayload = {
-          runId: session.runId,
-          year: typedMessage.payload.year,
-          timeFilterValue: typedMessage.payload.timeFilterValue,
-          timeFilterLabel: typedMessage.payload.timeFilterLabel,
-          downloadInvoices: typedMessage.payload.downloadInvoices,
-          reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
-          limit: session.ordersLimit,
-        };
-        return triggerContentScraper(scrapePayload)
-          .then(() => {
-            if (scrapePayload.reuseExistingOrders) {
-              updateSession({
-                phase: 'completed',
-                message: 'Reusing existing orders, starting invoice downloads...',
-              });
-              if (scrapePayload.downloadInvoices) {
-                void startInvoiceDownloads();
-              }
-              return { success: true, data: { state: session } };
+      }
+
+      case 'GET_AVAILABLE_FILTERS': {
+        return getActiveOrLastOrderTab()
+          .then(async (tab) => {
+            if (!tab?.id || !isSupportedAmazonUrl(tab.url)) {
+              return { success: true, data: { filters: getFilterFallback() } };
             }
-            return { success: true, data: { state: startState } };
+            try {
+              const response = await browser.tabs.sendMessage(tab.id, {
+                scope: SCRAPER_MESSAGE_SCOPE,
+                command: 'GET_FILTERS',
+              });
+              const filters = (response as { filters?: unknown } | undefined)?.filters;
+              if (Array.isArray(filters) && filters.length) {
+                return { success: true, data: { filters: filters as TimeFilterOption[] } };
+              }
+            } catch (error) {
+              console.warn('Failed to query years from content script', error);
+            }
+            return { success: true, data: { filters: getFilterFallback() } };
           })
-          .catch((error) => {
-            const messageText =
-              error instanceof Error ? error.message : 'Unable to reach the Amazon order page content script.';
-            updateSession({
-              phase: 'error',
-              message: messageText,
-              errorMessage: messageText,
-            });
-            return { success: false, error: messageText };
-          });
-      });
-    }
+          .catch(() => ({ success: true, data: { filters: getFilterFallback() } }));
+      }
 
-    case 'SCRAPE_PROGRESS': {
-      handleProgressUpdate(typedMessage.payload);
-      return Promise.resolve({ success: true, data: { state: session } });
-    }
-
-    case 'RESET_SCRAPE': {
-      resetSession();
-      cancelInvoiceQueue = true;
-      return Promise.resolve({ success: true, data: { state: session } });
-    }
-    case 'CANCEL_INVOICE_DOWNLOADS': {
-      cancelInvoiceQueue = true;
-      if (!invoiceQueueRunning) {
-        updateSession({ message: 'No invoice downloads in progress.', invoiceDownloadsStarted: false });
-      } else {
-        updateSession({ message: 'Cancelling invoice downloads...' });
-      }
-      return Promise.resolve({ success: true, data: { state: session } });
-    }
-    case 'RETRY_FAILED_INVOICES': {
-      if (invoiceQueueRunning) {
-        return Promise.resolve({ success: false, error: 'Invoice downloads are already running.' });
-      }
-      const failedIds = (session.invoiceFailures ?? []).map((failure) => failure.orderId);
-      if (!failedIds.length) {
-        return Promise.resolve({ success: false, error: 'No failed invoices to retry.' });
-      }
-      updateSession({
-        downloadInvoicesRequested: true,
-        message: `Retrying ${failedIds.length} failed invoice${failedIds.length === 1 ? '' : 's'}...`,
-      });
-      void startInvoiceDownloads(failedIds);
-      return Promise.resolve({ success: true, data: { state: session } });
-    }
-    case 'SET_SETTINGS': {
-      if (typedMessage.payload && typeof typedMessage.payload.notifyOnCompletion === 'boolean') {
-        notifyOnCompletion = typedMessage.payload.notifyOnCompletion;
-        void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
-        if (notifyOnCompletion) {
-          void maybeNotifyCompletion();
+      case 'START_SCRAPE': {
+        if (session.phase === 'running') {
+          return Promise.resolve({ success: false, error: 'Export is already running' });
         }
+        return getActiveAmazonHost().then((amazonHost) => {
+          const startState = handleStartScrape({
+            year: typedMessage.payload.year,
+            timeFilterValue: typedMessage.payload.timeFilterValue,
+            timeFilterLabel: typedMessage.payload.timeFilterLabel,
+            downloadInvoices: typedMessage.payload.downloadInvoices,
+            reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
+            amazonHost,
+          });
+          if (typedMessage.payload.reuseExistingOrders) {
+            updateSession({
+              phase: 'completed',
+              ordersCollected: session.orders.length,
+            });
+            if (typedMessage.payload.downloadInvoices) {
+              void startInvoiceDownloads();
+            }
+            return { success: true, data: { state: session } };
+          }
+          const scrapePayload: ScraperStartPayload = {
+            runId: session.runId,
+            year: typedMessage.payload.year,
+            timeFilterValue: typedMessage.payload.timeFilterValue,
+            timeFilterLabel: typedMessage.payload.timeFilterLabel,
+            downloadInvoices: typedMessage.payload.downloadInvoices,
+            reuseExistingOrders: typedMessage.payload.reuseExistingOrders,
+            limit: session.ordersLimit,
+          };
+          return triggerContentScraper(scrapePayload)
+            .then(() => {
+              if (scrapePayload.reuseExistingOrders) {
+                updateSession({
+                  phase: 'completed',
+                  message: 'Reusing existing orders, starting invoice downloads...',
+                });
+                if (scrapePayload.downloadInvoices) {
+                  void startInvoiceDownloads();
+                }
+                return { success: true, data: { state: session } };
+              }
+              return { success: true, data: { state: startState } };
+            })
+            .catch((error) => {
+              const messageText =
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to reach the Amazon order page content script.';
+              updateSession({
+                phase: 'error',
+                message: messageText,
+                errorMessage: messageText,
+              });
+              return { success: false, error: messageText };
+            });
+        });
       }
-      return Promise.resolve({ success: true, data: { state: session } });
-    }
-    case 'TEST_NOTIFICATION': {
-      return sendTestNotification();
-    }
-    case 'CANCEL_SCRAPE': {
-      return cancelScrape().then(() => ({ success: true, data: { state: session } }));
-    }
 
-    default:
-      return Promise.resolve({ success: false, error: `Unknown message: ${String((typedMessage as { type?: string }).type)}` });
-  }
-});
+      case 'SCRAPE_PROGRESS': {
+        handleProgressUpdate(typedMessage.payload);
+        return Promise.resolve({ success: true, data: { state: session } });
+      }
+
+      case 'RESET_SCRAPE': {
+        resetSession();
+        cancelInvoiceQueue = true;
+        return Promise.resolve({ success: true, data: { state: session } });
+      }
+      case 'CANCEL_INVOICE_DOWNLOADS': {
+        cancelInvoiceQueue = true;
+        if (!invoiceQueueRunning) {
+          updateSession({
+            message: 'No invoice downloads in progress.',
+            invoiceDownloadsStarted: false,
+          });
+        } else {
+          updateSession({ message: 'Cancelling invoice downloads...' });
+        }
+        return Promise.resolve({ success: true, data: { state: session } });
+      }
+      case 'RETRY_FAILED_INVOICES': {
+        if (invoiceQueueRunning) {
+          return Promise.resolve({
+            success: false,
+            error: 'Invoice downloads are already running.',
+          });
+        }
+        const failedIds = (session.invoiceFailures ?? []).map((failure) => failure.orderId);
+        if (!failedIds.length) {
+          return Promise.resolve({ success: false, error: 'No failed invoices to retry.' });
+        }
+        updateSession({
+          downloadInvoicesRequested: true,
+          message: `Retrying ${failedIds.length} failed invoice${failedIds.length === 1 ? '' : 's'}...`,
+        });
+        void startInvoiceDownloads(failedIds);
+        return Promise.resolve({ success: true, data: { state: session } });
+      }
+      case 'SET_SETTINGS': {
+        if (typedMessage.payload && typeof typedMessage.payload.notifyOnCompletion === 'boolean') {
+          notifyOnCompletion = typedMessage.payload.notifyOnCompletion;
+          void browser.storage.local.set({ [SETTINGS_KEY]: { notifyOnCompletion } });
+          if (notifyOnCompletion) {
+            void maybeNotifyCompletion();
+          }
+        }
+        return Promise.resolve({ success: true, data: { state: session } });
+      }
+      case 'TEST_NOTIFICATION': {
+        return sendTestNotification();
+      }
+      case 'CANCEL_SCRAPE': {
+        return cancelScrape().then(() => ({ success: true, data: { state: session } }));
+      }
+
+      default:
+        return Promise.resolve({
+          success: false,
+          error: `Unknown message: ${String((typedMessage as { type?: string }).type)}`,
+        });
+    }
+  },
+);

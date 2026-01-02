@@ -1,7 +1,7 @@
 name: Bug report
 description: Report a problem with the extension
-title: "[Bug]: "
-labels: ["bug"]
+title: '[Bug]: '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -12,7 +12,7 @@ body:
     attributes:
       label: Extension version
       description: Found in the popup footer (e.g., 0.1.0).
-      placeholder: "0.1.0"
+      placeholder: '0.1.0'
     validations:
       required: true
   - type: dropdown
@@ -32,7 +32,7 @@ body:
     attributes:
       label: Amazon domain
       description: Which Amazon site? (e.g., amazon.in)
-      placeholder: "amazon.in"
+      placeholder: 'amazon.in'
     validations:
       required: true
   - type: textarea

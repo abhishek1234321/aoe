@@ -5,6 +5,7 @@ All fixtures must be sanitized and contain no PII (names, addresses, real order 
 See `docs/samples/README.md` for shared rules and validation.
 
 ## Current fixtures
+
 - `order-list.html`
 - `order-single.html`
 - `time-filter.html`
@@ -12,4 +13,5 @@ See `docs/samples/README.md` for shared rules and validation.
 - `e2e-orders.html`
 
 ## Archive
+
 When fixtures change, copy the previous versions into `archive/YYYY-MM-DD/` so we can compare DOM changes over time.

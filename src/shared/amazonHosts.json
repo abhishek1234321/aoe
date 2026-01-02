@@ -2,37 +2,21 @@
   {
     "key": "amazon.in",
     "baseUrl": "https://www.amazon.in",
-    "orderHistoryPaths": [
-      "/gp/css/order-history",
-      "/gp/your-account/order-history",
-      "/your-orders"
-    ]
+    "orderHistoryPaths": ["/gp/css/order-history", "/gp/your-account/order-history", "/your-orders"]
   },
   {
     "key": "amazon.com",
     "baseUrl": "https://www.amazon.com",
-    "orderHistoryPaths": [
-      "/gp/css/order-history",
-      "/gp/your-account/order-history",
-      "/your-orders"
-    ]
+    "orderHistoryPaths": ["/gp/css/order-history", "/gp/your-account/order-history", "/your-orders"]
   },
   {
     "key": "amazon.ca",
     "baseUrl": "https://www.amazon.ca",
-    "orderHistoryPaths": [
-      "/gp/css/order-history",
-      "/gp/your-account/order-history",
-      "/your-orders"
-    ]
+    "orderHistoryPaths": ["/gp/css/order-history", "/gp/your-account/order-history", "/your-orders"]
   },
   {
     "key": "amazon.co.uk",
     "baseUrl": "https://www.amazon.co.uk",
-    "orderHistoryPaths": [
-      "/gp/css/order-history",
-      "/gp/your-account/order-history",
-      "/your-orders"
-    ]
+    "orderHistoryPaths": ["/gp/css/order-history", "/gp/your-account/order-history", "/your-orders"]
   }
 ]

@@ -53,7 +53,10 @@ const ensurePopupReady = async (popupPage, orderPage) => {
     await orderPage.bringToFront();
     await popupPage.reload();
     await orderPage.bringToFront();
-    const visible = await popupPage.locator('#timeFilter').isVisible().catch(() => false);
+    const visible = await popupPage
+      .locator('#timeFilter')
+      .isVisible()
+      .catch(() => false);
     if (visible) {
       return;
     }

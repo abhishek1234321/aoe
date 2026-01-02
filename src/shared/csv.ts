@@ -20,9 +20,7 @@ export type CsvRow = Record<(typeof CSV_HEADERS)[number], string>;
 
 const formatItems = (items: OrderSummary['shipments']) => {
   const flattened = items
-    .flatMap((shipment) =>
-      shipment.items.map((item) => item.title || item.asin || 'Item'),
-    )
+    .flatMap((shipment) => shipment.items.map((item) => item.title || item.asin || 'Item'))
     .filter(Boolean);
   return flattened.join(' | ');
 };
@@ -32,7 +30,10 @@ const formatOrderDetailsUrl = (order: OrderSummary, baseUrl?: string | null) => 
     return resolveAmazonUrl(order.orderDetailsUrl, baseUrl);
   }
   if (order.orderId) {
-    return resolveAmazonUrl(`/your-orders/order-details?orderID=${encodeURIComponent(order.orderId)}`, baseUrl);
+    return resolveAmazonUrl(
+      `/your-orders/order-details?orderID=${encodeURIComponent(order.orderId)}`,
+      baseUrl,
+    );
   }
   return '';
 };
@@ -59,7 +60,11 @@ export const ordersToCsv = (orders: OrderSummary[], baseUrl?: string | null) => 
   }));
 
   const nonCancelled = orders.filter(
-    (order) => !((order.status ?? '').toLowerCase().includes('cancel') || (order.status ?? '').toLowerCase().includes('return')),
+    (order) =>
+      !(
+        (order.status ?? '').toLowerCase().includes('cancel') ||
+        (order.status ?? '').toLowerCase().includes('return')
+      ),
   );
   const totalSpend = nonCancelled.reduce((sum, order) => {
     const amt = order.total.amount ?? 0;
@@ -118,18 +123,25 @@ export const ordersToCsv = (orders: OrderSummary[], baseUrl?: string | null) => 
     });
     buyerGroups.forEach((groupOrders, buyerName) => {
       const groupNonCancelled = groupOrders.filter(
-        (order) => !((order.status ?? '').toLowerCase().includes('cancel') || (order.status ?? '').toLowerCase().includes('return')),
+        (order) =>
+          !(
+            (order.status ?? '').toLowerCase().includes('cancel') ||
+            (order.status ?? '').toLowerCase().includes('return')
+          ),
       );
       const groupSpend = groupNonCancelled.reduce((sum, order) => {
         const amt = order.total.amount ?? 0;
         return sum + (Number.isFinite(amt) ? amt : 0);
       }, 0);
-      const groupCurrency = groupNonCancelled.find((o) => o.total.currencySymbol)?.total.currencySymbol ?? '';
+      const groupCurrency =
+        groupNonCancelled.find((o) => o.total.currencySymbol)?.total.currencySymbol ?? '';
       const avg = groupNonCancelled.length ? groupSpend / groupNonCancelled.length : 0;
       rows.push({
         'Order ID': 'Buyer',
         'Order Date': '',
-        Items: groupNonCancelled.length ? `Avg order: ${formatCurrency(avg, groupCurrency)}` : 'Avg order: N/A',
+        Items: groupNonCancelled.length
+          ? `Avg order: ${formatCurrency(avg, groupCurrency)}`
+          : 'Avg order: N/A',
         'Item Count': String(groupOrders.length),
         'Buyer Name': buyerName,
         'Total Amount': formatCurrency(groupSpend, groupCurrency),

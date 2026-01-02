@@ -23,7 +23,7 @@ export const parseInvoiceLinks = (html: string): InvoiceLink[] => {
     // fallback below
   }
 
-  const regex = /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const regex = /<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a\s*>/gi;
   const links: InvoiceLink[] = [];
   let match: RegExpExecArray | null;
   while ((match = regex.exec(html)) !== null) {

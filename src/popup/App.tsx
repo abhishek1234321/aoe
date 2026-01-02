@@ -1,6 +1,12 @@
 import browser from 'webextension-polyfill';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_AMAZON_HOST, MAX_ORDERS_PER_RUN, SUPPORT_EMAIL, getAmazonHostForUrl, getOrderHistoryUrl } from '@shared/constants';
+import {
+  DEFAULT_AMAZON_HOST,
+  MAX_ORDERS_PER_RUN,
+  SUPPORT_EMAIL,
+  getAmazonHostForUrl,
+  getOrderHistoryUrl,
+} from '@shared/constants';
 import { sendRuntimeMessage } from '@shared/messaging';
 import { ordersToCsv } from '@shared/csv';
 import type { OrderSummary, ScrapeSessionSnapshot } from '@shared/types';
@@ -50,7 +56,9 @@ const formatTimestamp = (timestamp?: number) => {
     return '—';
   }
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      timestamp,
+    );
   } catch {
     return new Date(timestamp).toLocaleString();
   }
@@ -95,7 +103,12 @@ const App = () => {
 
   useEffect(() => {
     const fetchContext = async () => {
-      const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot; isSupported: boolean; url?: string; amazonHost?: string }>({
+      const response = await sendRuntimeMessage<{
+        state: ScrapeSessionSnapshot;
+        isSupported: boolean;
+        url?: string;
+        amazonHost?: string;
+      }>({
         type: 'GET_CONTEXT',
       });
       if (response.success) {
@@ -121,9 +134,14 @@ const App = () => {
   }, [setSession]);
 
   useEffect(() => {
-    const handler: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, areaName) => {
+    const handler: Parameters<typeof browser.storage.onChanged.addListener>[0] = (
+      changes,
+      areaName,
+    ) => {
       if (areaName !== 'session') return;
-      const nextState = (changes['aoe:scrape-session'] as { newValue?: ScrapeSessionSnapshot } | undefined)?.newValue;
+      const nextState = (
+        changes['aoe:scrape-session'] as { newValue?: ScrapeSessionSnapshot } | undefined
+      )?.newValue;
       if (nextState) {
         setSession(nextState);
       }
@@ -136,7 +154,8 @@ const App = () => {
 
   useEffect(() => {
     void browser.storage.local.get('aoe:settings').then((stored) => {
-      const next = (stored['aoe:settings'] as { notifyOnCompletion?: boolean } | undefined)?.notifyOnCompletion;
+      const next = (stored['aoe:settings'] as { notifyOnCompletion?: boolean } | undefined)
+        ?.notifyOnCompletion;
       if (typeof next === 'boolean') {
         setNotifyOnCompletion(next);
       }
@@ -178,7 +197,8 @@ const App = () => {
     return {
       generatedAt: new Date().toISOString(),
       extensionVersion: version,
-      amazonHost: session?.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST,
+      amazonHost:
+        session?.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST,
       locale: navigator.language,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       userAgent: navigator.userAgent,
@@ -204,7 +224,10 @@ const App = () => {
     setShowFilterOverride(false);
     const chosen = availableFilters.find((option) => option.value === selectedFilter);
     const parsedYear =
-      chosen?.year ?? (selectedFilter.startsWith('year-') ? Number(selectedFilter.replace('year-', '')) : undefined);
+      chosen?.year ??
+      (selectedFilter.startsWith('year-')
+        ? Number(selectedFilter.replace('year-', ''))
+        : undefined);
     const downloadInvoicesFlag = Boolean(downloadInvoices);
     if (downloadInvoicesFlag) {
       const granted = await requestPermission('downloads');
@@ -282,7 +305,8 @@ const App = () => {
     if (!session?.orders) {
       return;
     }
-    const csvBaseUrl = session.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST;
+    const csvBaseUrl =
+      session.amazonHost ?? getAmazonHostForUrl(activeUrl)?.baseUrl ?? DEFAULT_AMAZON_HOST;
     downloadCsv(ordersToCsv(session.orders, csvBaseUrl), session.runId);
     if (shouldPromptInvoiceDownload) {
       await handleStartInvoiceDownloads();
@@ -384,7 +408,10 @@ const App = () => {
     }
     if (session.phase === 'running') {
       const total = session.ordersInRange ?? session.ordersLimit;
-      const capSuffix = session.ordersInRange && session.ordersInRange > session.ordersLimit ? ` (cap ${session.ordersLimit})` : '';
+      const capSuffix =
+        session.ordersInRange && session.ordersInRange > session.ordersLimit
+          ? ` (cap ${session.ordersLimit})`
+          : '';
       return `Exporting — collected ${session.ordersCollected}/${total}${capSuffix}`;
     }
     if (session.phase === 'completed') {
@@ -424,13 +451,16 @@ const App = () => {
   const canDownload = Boolean(session?.orders?.length && session?.phase === 'completed');
   const canDownloadInvoicesOnly = Boolean(
     session?.orders?.length &&
-      session?.phase === 'completed' &&
-      session?.downloadInvoicesRequested &&
-      (session?.invoicesQueued ?? 0) > 0 &&
-      (session?.invoicesDownloaded ?? 0) === 0,
+    session?.phase === 'completed' &&
+    session?.downloadInvoicesRequested &&
+    (session?.invoicesQueued ?? 0) > 0 &&
+    (session?.invoicesDownloaded ?? 0) === 0,
   );
   const shouldPromptInvoiceDownload = canDownloadInvoicesOnly && !session?.invoiceDownloadsStarted;
-  const showCancelInvoices = Boolean(session?.invoiceDownloadsStarted && (session?.invoicesDownloaded ?? 0) < (session?.invoicesQueued ?? 0));
+  const showCancelInvoices = Boolean(
+    session?.invoiceDownloadsStarted &&
+    (session?.invoicesDownloaded ?? 0) < (session?.invoicesQueued ?? 0),
+  );
   const showCancelScrape = session?.phase === 'running';
   const canStart = !loading && !isRunning && isOnOrderPage !== false;
   const canShowHighlights = Boolean(session?.orders?.length && session?.phase === 'completed');
@@ -444,11 +474,17 @@ const App = () => {
   const ordersLimit = session?.ordersLimit ?? MAX_ORDERS_PER_RUN;
   const ordersInRange = session?.ordersInRange;
   const ordersCollectedDisplay =
-    session?.phase === 'completed' ? session?.orders?.length ?? session?.ordersCollected ?? 0 : session?.ordersCollected ?? 0;
+    session?.phase === 'completed'
+      ? (session?.orders?.length ?? session?.ordersCollected ?? 0)
+      : (session?.ordersCollected ?? 0);
   const ordersTotalDisplay = ordersInRange ?? ordersLimit;
-  const ordersCapSuffix = ordersInRange && ordersInRange > ordersLimit ? ` (cap ${ordersLimit})` : '';
+  const ordersCapSuffix =
+    ordersInRange && ordersInRange > ordersLimit ? ` (cap ${ordersLimit})` : '';
   const ordersProgressTotal = Math.max(
-    Math.min(typeof ordersTotalDisplay === 'number' ? ordersTotalDisplay : ordersLimit, ordersLimit),
+    Math.min(
+      typeof ordersTotalDisplay === 'number' ? ordersTotalDisplay : ordersLimit,
+      ordersLimit,
+    ),
     1,
   );
   const pagesScraped = session?.pagesScraped ?? 0;
@@ -477,22 +513,29 @@ const App = () => {
       return null;
     }
     return formatEta(remaining / rate);
-  }, [ordersCollectedDisplay, ordersLimit, ordersTotalDisplay, session?.phase, session?.startedAt, session?.updatedAt]);
+  }, [
+    ordersCollectedDisplay,
+    ordersLimit,
+    ordersTotalDisplay,
+    session?.phase,
+    session?.startedAt,
+    session?.updatedAt,
+  ]);
   const invoiceFailures = session?.invoiceFailures ?? [];
   const hasInvoiceFailures = invoiceFailures.length > 0;
   const canRetryFailedInvoices = Boolean(session?.phase === 'completed' && hasInvoiceFailures);
   const invoiceErrorHint =
     session?.invoiceErrors && session.invoiceErrors > 0
-      ? session.lastInvoiceError ??
-        'Some invoices failed to download. Check your browser download settings and try again.'
+      ? (session.lastInvoiceError ??
+        'Some invoices failed to download. Check your browser download settings and try again.')
       : null;
   const canRetryScrape = Boolean(
     session?.phase === 'error' &&
-      session?.errorMessage &&
-      (session.errorMessage.includes('Scrape tab unavailable') ||
-        session.errorMessage.includes('Helper tab unavailable') ||
-        session.errorMessage.includes('Timed out waiting for scrape tab') ||
-        session.errorMessage.includes('Timed out waiting for helper tab')),
+    session?.errorMessage &&
+    (session.errorMessage.includes('Scrape tab unavailable') ||
+      session.errorMessage.includes('Helper tab unavailable') ||
+      session.errorMessage.includes('Timed out waiting for scrape tab') ||
+      session.errorMessage.includes('Timed out waiting for helper tab')),
   );
 
   const showFilterForm = viewMode === 'main' && (!isEmptyResult || showFilterOverride);
@@ -521,7 +564,9 @@ const App = () => {
       setNotificationTestStatus('Notifications permission not granted.');
       return;
     }
-    const response = await sendRuntimeMessage<{ notificationId?: string }>({ type: 'TEST_NOTIFICATION' });
+    const response = await sendRuntimeMessage<{ notificationId?: string }>({
+      type: 'TEST_NOTIFICATION',
+    });
     if (response.success) {
       setNotificationTestStatus(
         'Test notification sent. If you do not see it, check OS/browser notification settings.',
@@ -532,10 +577,10 @@ const App = () => {
       console.info('[AOE] Test notification failed', response.error);
     }
   };
-  const overallHighlights = useMemo(() => computeHighlights(session?.orders ?? [], session?.timeFilterValue), [
-    session?.orders,
-    session?.timeFilterValue,
-  ]);
+  const overallHighlights = useMemo(
+    () => computeHighlights(session?.orders ?? [], session?.timeFilterValue),
+    [session?.orders, session?.timeFilterValue],
+  );
 
   const buyerGroups = useMemo(() => {
     const map = new Map<string, { key: string; label: string; orders: OrderSummary[] }>();
@@ -566,8 +611,12 @@ const App = () => {
       ? selectedBuyer
       : 'all';
   const selectedGroup = buyerGroups.find((group) => group.key === resolvedBuyerKey);
-  const summary = resolvedBuyerKey === 'all' ? overallHighlights : selectedGroup?.highlights ?? overallHighlights;
-  const summaryLabel = resolvedBuyerKey === 'all' ? 'All orders' : selectedGroup?.label ?? 'All orders';
+  const summary =
+    resolvedBuyerKey === 'all'
+      ? overallHighlights
+      : (selectedGroup?.highlights ?? overallHighlights);
+  const summaryLabel =
+    resolvedBuyerKey === 'all' ? 'All orders' : (selectedGroup?.label ?? 'All orders');
   const buyerRows = useMemo(() => {
     const rows = [
       {
@@ -622,20 +671,27 @@ const App = () => {
             <div>
               <p className="hero-title">Open your Amazon Orders page</p>
               <p className="hero-copy">
-                We&apos;ll open Orders in a new tab. When it loads, click the extension icon again, choose a time range,
-                and click <strong>Start export</strong>.
+                We&apos;ll open Orders in a new tab. When it loads, click the extension icon again,
+                choose a time range, and click <strong>Start export</strong>.
               </p>
             </div>
           </div>
           <a href={ordersUrl} target="_blank" rel="noreferrer" className="hero-cta">
             Open order history (new tab)
           </a>
-          <p className="hero-hint">Already on Orders? Refresh the tab, then reopen this extension.</p>
+          <p className="hero-hint">
+            Already on Orders? Refresh the tab, then reopen this extension.
+          </p>
         </section>
         <footer className="privacy-note sticky-footer">
-          <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
+          <div>
+            All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves
+            your device.
+          </div>
           <div className="footer-links">
-            {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
+            {version ? (
+              <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span>
+            ) : null}
             {supportMailto ? (
               <a href={supportMailto} target="_blank" rel="noreferrer" className="footer-link">
                 Email support
@@ -692,80 +748,92 @@ const App = () => {
             <section style={{ marginTop: '16px' }}>
               {showFilterForm && (
                 <form onSubmit={handleSubmit}>
-              <label htmlFor="timeFilter" className="field-label">
-                Choose a time filter
-              </label>
-              <select
-                id="timeFilter"
-                value={selectedFilter}
-                onChange={(event) => setSelectedFilter(event.target.value)}
-                disabled={isBlockedPage}
-                className="select-input"
-                required
-              >
-                <option value="">Select a range</option>
-                {filterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                  <label htmlFor="timeFilter" className="field-label">
+                    Choose a time filter
+                  </label>
+                  <select
+                    id="timeFilter"
+                    value={selectedFilter}
+                    onChange={(event) => setSelectedFilter(event.target.value)}
+                    disabled={isBlockedPage}
+                    className="select-input"
+                    required
+                  >
+                    <option value="">Select a range</option>
+                    {filterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
 
-              <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={downloadInvoices}
-                  onChange={async (event) => {
-                    const next = event.target.checked;
-                    if (next) {
-                      const granted = await requestPermission('downloads');
-                      if (!granted) {
-                        setError('Enable downloads permission to save invoices.');
-                        return;
-                      }
-                    }
-                    setDownloadInvoices(next);
-                  }}
-                  disabled={isBlockedPage}
-                />
-                <span>Download invoices after CSV download</span>
-              </label>
+                  <label
+                    className="field-label"
+                    style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={downloadInvoices}
+                      onChange={async (event) => {
+                        const next = event.target.checked;
+                        if (next) {
+                          const granted = await requestPermission('downloads');
+                          if (!granted) {
+                            setError('Enable downloads permission to save invoices.');
+                            return;
+                          }
+                        }
+                        setDownloadInvoices(next);
+                      }}
+                      disabled={isBlockedPage}
+                    />
+                    <span>Download invoices after CSV download</span>
+                  </label>
 
-              <label className="field-label" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={notifyOnCompletion}
-                  onChange={async (event) => {
-                    const next = event.target.checked;
-                    if (next) {
-                      const granted = await requestPermission('notifications');
-                      if (!granted) {
-                        setError('Enable notifications permission to get completion alerts.');
-                        return;
-                      }
-                    }
-                    setNotifyOnCompletion(next);
-                    await browser.storage.local.set({ 'aoe:settings': { notifyOnCompletion: next } });
-                    await sendRuntimeMessage({
-                      type: 'SET_SETTINGS',
-                      payload: { notifyOnCompletion: next },
-                    });
-                  }}
-                  disabled={isBlockedPage}
-                />
-                <span>Notify when export completes</span>
-              </label>
+                  <label
+                    className="field-label"
+                    style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={notifyOnCompletion}
+                      onChange={async (event) => {
+                        const next = event.target.checked;
+                        if (next) {
+                          const granted = await requestPermission('notifications');
+                          if (!granted) {
+                            setError('Enable notifications permission to get completion alerts.');
+                            return;
+                          }
+                        }
+                        setNotifyOnCompletion(next);
+                        await browser.storage.local.set({
+                          'aoe:settings': { notifyOnCompletion: next },
+                        });
+                        await sendRuntimeMessage({
+                          type: 'SET_SETTINGS',
+                          payload: { notifyOnCompletion: next },
+                        });
+                      }}
+                      disabled={isBlockedPage}
+                    />
+                    <span>Notify when export completes</span>
+                  </label>
 
-              {showNotificationTest ? (
-                <div style={{ marginTop: '8px' }}>
-                  <button type="button" className="secondary-button" onClick={handleTestNotification}>
-                    Send test notification
-                  </button>
-                  {notificationTestStatus ? (
-                    <div className="helper-text">{notificationTestStatus}</div>
+                  {showNotificationTest ? (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={handleTestNotification}
+                      >
+                        Send test notification
+                      </button>
+                      {notificationTestStatus ? (
+                        <div className="helper-text">{notificationTestStatus}</div>
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
-              ) : null}
 
                   <button
                     type="submit"
@@ -778,163 +846,398 @@ const App = () => {
               )}
 
               {canShowHighlights ? (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{ marginTop: '8px' }}
-              onClick={() => {
-                setView('highlights');
-              }}
-            >
-              View highlights
-            </button>
-          ) : null}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
+                  onClick={() => {
+                    setView('highlights');
+                  }}
+                >
+                  View highlights
+                </button>
+              ) : null}
 
               {hasInvoiceFailures ? (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{ marginTop: '8px' }}
-              onClick={() => setView('invoices')}
-            >
-              View failed invoices ({invoiceFailures.length})
-            </button>
-          ) : null}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
+                  onClick={() => setView('invoices')}
+                >
+                  View failed invoices ({invoiceFailures.length})
+                </button>
+              ) : null}
 
               {shouldPromptInvoiceDownload && (
-            <button
-              type="button"
-              onClick={handleStartInvoiceDownloads}
-              className={`secondary-button ${loading ? 'disabled' : ''}`}
-              disabled={loading}
-              style={{ marginTop: '8px' }}
-            >
-              Download invoices
-            </button>
-          )}
+                <button
+                  type="button"
+                  onClick={handleStartInvoiceDownloads}
+                  className={`secondary-button ${loading ? 'disabled' : ''}`}
+                  disabled={loading}
+                  style={{ marginTop: '8px' }}
+                >
+                  Download invoices
+                </button>
+              )}
 
               {showResetButton && (
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={loading}
-              className={`secondary-button ${loading ? 'disabled' : ''}`}
-            >
-              Reset session
-            </button>
-          )}
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={loading}
+                  className={`secondary-button ${loading ? 'disabled' : ''}`}
+                >
+                  Reset session
+                </button>
+              )}
               {showCancelScrape && (
-            <button
-              type="button"
-              onClick={async () => {
-                setLoading(true);
-                const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
-                  type: 'CANCEL_SCRAPE',
-                });
-                if (response.success && response.data?.state) {
-                  setSession(response.data.state);
-                }
-                setLoading(false);
-              }}
-              className={`secondary-button ${loading ? 'disabled' : ''}`}
-              style={{ marginTop: '8px' }}
-            >
-              Stop export
-            </button>
-          )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLoading(true);
+                    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+                      type: 'CANCEL_SCRAPE',
+                    });
+                    if (response.success && response.data?.state) {
+                      setSession(response.data.state);
+                    }
+                    setLoading(false);
+                  }}
+                  className={`secondary-button ${loading ? 'disabled' : ''}`}
+                  style={{ marginTop: '8px' }}
+                >
+                  Stop export
+                </button>
+              )}
             </section>
           ) : null}
 
-        {viewMode === 'highlights' && canShowHighlights ? (
-          <section className="status-block">
-            <p className="scope-label">Showing highlights for: {summaryLabel}</p>
-            {showBuyerGroups ? (
+          {viewMode === 'highlights' && canShowHighlights ? (
+            <section className="status-block">
+              <p className="scope-label">Showing highlights for: {summaryLabel}</p>
+              {showBuyerGroups ? (
+                <div className="highlight-card">
+                  <div className="highlight-label">Buyer breakdown</div>
+                  <div className="buyer-list">
+                    {buyerRows.map((row) => (
+                      <button
+                        key={row.key}
+                        type="button"
+                        className={`buyer-row ${resolvedBuyerKey === row.key ? 'active' : ''}`}
+                        onClick={() => setSelectedBuyer(row.key)}
+                      >
+                        <span className="buyer-name">{row.label}</span>
+                        <span className="buyer-meta">
+                          {row.orders} orders • {row.spend}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {summary.totalOrders === 0 ? (
+                <div className="highlight-card">
+                  <div className="highlight-label">
+                    No orders found for this buyer in the selected range.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="highlight-card">
+                    <div className="highlight-row">
+                      <div>
+                        <div className="highlight-label">Total orders</div>
+                        <div className="highlight-value">{summary.totalOrders}</div>
+                      </div>
+                      <div>
+                        <div className="highlight-label">Non-cancelled</div>
+                        <div className="highlight-value">{summary.nonCancelledOrders}</div>
+                      </div>
+                    </div>
+                    <div className="highlight-row">
+                      <div>
+                        <div className="highlight-label">Total spend</div>
+                        <div className="highlight-value">{summary.formattedSpend || '—'}</div>
+                      </div>
+                      <div>
+                        <div className="highlight-label">Avg order</div>
+                        <div className="highlight-value">{summary.formattedAvg || '—'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="highlight-card">
+                    <div className="highlight-label">Busiest day</div>
+                    <div className="highlight-value">{summary.busiestDay ?? '—'}</div>
+                    <div className="highlight-label" style={{ marginTop: '8px' }}>
+                      Top period ({summary.topPeriod ? 'based on filter' : '—'})
+                    </div>
+                    <div className="highlight-value">
+                      {summary.topPeriod
+                        ? `${summary.topPeriod.label} (${summary.topPeriod.count})`
+                        : '—'}
+                    </div>
+                  </div>
+
+                  <div className="highlight-card">
+                    <div className="highlight-label">Top items</div>
+                    {summary.topItems.length ? (
+                      summary.topItems.map((item) => (
+                        <div
+                          key={item.label}
+                          style={{ display: 'flex', justifyContent: 'space-between' }}
+                        >
+                          <span>{item.label}</span>
+                          <span className="highlight-label">x{item.count}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="highlight-label">No items yet</div>
+                    )}
+                    <div className="highlight-row" style={{ marginTop: '8px' }}>
+                      <div>
+                        <div className="highlight-label">Unique items</div>
+                        <div className="highlight-value">{summary.uniqueItems}</div>
+                      </div>
+                      <div>
+                        <div className="highlight-label">Repeated items</div>
+                        <div className="highlight-value">{summary.repeatItems}</div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="view-actions">
+                {canDownload ? (
+                  <button
+                    type="button"
+                    onClick={handleDownloadCsv}
+                    className={`download-button ${loading ? 'disabled' : ''}`}
+                    disabled={loading}
+                  >
+                    Download CSV
+                  </button>
+                ) : null}
+                {shouldPromptInvoiceDownload ? (
+                  <button
+                    type="button"
+                    onClick={handleStartInvoiceDownloads}
+                    className={`secondary-button ${loading ? 'disabled' : ''}`}
+                    disabled={loading}
+                  >
+                    Download invoices
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          ) : viewMode === 'invoices' ? (
+            <section className="status-block">
               <div className="highlight-card">
-                <div className="highlight-label">Buyer breakdown</div>
-                <div className="buyer-list">
-                  {buyerRows.map((row) => (
-                    <button
-                      key={row.key}
-                      type="button"
-                      className={`buyer-row ${resolvedBuyerKey === row.key ? 'active' : ''}`}
-                      onClick={() => setSelectedBuyer(row.key)}
-                    >
-                      <span className="buyer-name">{row.label}</span>
-                      <span className="buyer-meta">
-                        {row.orders} orders • {row.spend}
-                      </span>
-                    </button>
+                <div className="highlight-label">Failed invoices</div>
+                <div className="highlight-value">{invoiceFailures.length}</div>
+                <div className="helper-text">
+                  Review each order and retry downloads once you have enabled multiple downloads in
+                  your browser.
+                </div>
+              </div>
+              {invoiceFailures.length ? (
+                <div className="invoice-failure-list">
+                  {invoiceFailures.map((failure) => (
+                    <div key={failure.orderId} className="invoice-failure-item">
+                      <div className="invoice-failure-row">
+                        <span>{failure.orderId}</span>
+                        {failure.orderDetailsUrl ? (
+                          <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
+                            Open order
+                          </a>
+                        ) : null}
+                      </div>
+                      <div className="invoice-failure-message">{failure.message}</div>
+                    </div>
                   ))}
                 </div>
+              ) : (
+                <div className="helper-text">No failed invoices right now.</div>
+              )}
+              <div className="view-actions">
+                {canRetryFailedInvoices ? (
+                  <button
+                    type="button"
+                    className={`secondary-button ${loading ? 'disabled' : ''}`}
+                    onClick={handleRetryFailedInvoices}
+                    disabled={loading}
+                  >
+                    Retry failed invoices
+                  </button>
+                ) : null}
               </div>
-            ) : null}
-            {summary.totalOrders === 0 ? (
-              <div className="highlight-card">
-                <div className="highlight-label">No orders found for this buyer in the selected range.</div>
+            </section>
+          ) : isEmptyResult && !showFilterForm ? (
+            <section className="status-block">
+              <div className="hero-card">
+                <div className="hero-body">
+                  <img src={heroOrders} alt="No orders" className="illustration" />
+                  <div>
+                    <p className="hero-title">No orders found</p>
+                    <p className="hero-copy">
+                      Amazon shows no orders for this timeframe. Try another range or refresh the
+                      Orders page to verify the filter.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={loading}
+                  style={{ marginTop: '12px' }}
+                  onClick={handleChooseAnotherTimeframe}
+                >
+                  Choose another timeframe
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="highlight-card">
-                  <div className="highlight-row">
-                    <div>
-                      <div className="highlight-label">Total orders</div>
-                      <div className="highlight-value">{summary.totalOrders}</div>
+            </section>
+          ) : (
+            <section className="status-block">
+              {isBlockedPage && (
+                <p className="status-warning">
+                  Please open the Amazon order history page before starting an export.
+                </p>
+              )}
+              <p style={{ margin: '0 0 8px' }}>
+                <strong>Status:</strong> {statusMessage}
+              </p>
+              <p style={{ margin: 0 }}>
+                Filtering: {session?.timeFilterLabel ?? session?.yearFilter ?? 'All'}
+              </p>
+              {showProgressDetails ? (
+                <>
+                  {ordersInRange ? (
+                    <p className="helper-text" style={{ marginTop: '4px' }}>
+                      Amazon shows {ordersInRange} orders for this timeframe.
+                    </p>
+                  ) : null}
+                  <div className="progress-container" style={{ marginTop: '8px' }}>
+                    <div className="progress-label">
+                      Orders: {ordersCollectedDisplay}/{ordersTotalDisplay}
+                      {ordersCapSuffix}
                     </div>
-                    <div>
-                      <div className="highlight-label">Non-cancelled</div>
-                      <div className="highlight-value">{summary.nonCancelledOrders}</div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-bar-fill"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            ((ordersCollectedDisplay ?? 0) / ordersProgressTotal) * 100,
+                          ).toFixed(1)}%`,
+                        }}
+                      />
                     </div>
                   </div>
-                  <div className="highlight-row">
-                    <div>
-                      <div className="highlight-label">Total spend</div>
-                      <div className="highlight-value">{summary.formattedSpend || '—'}</div>
-                    </div>
-                    <div>
-                      <div className="highlight-label">Avg order</div>
-                      <div className="highlight-value">{summary.formattedAvg || '—'}</div>
-                    </div>
+                  <dl className="definition-list">
+                    <dt>Orders collected:</dt>
+                    <dd>
+                      {ordersCollectedDisplay}/{ordersTotalDisplay}
+                      {ordersCapSuffix}
+                    </dd>
+                    <dt>Pages:</dt>
+                    <dd>{pagesScraped || '—'}</dd>
+                    <dt>ETA:</dt>
+                    <dd>{etaLabel ?? '—'}</dd>
+                    <dt>Invoices queued:</dt>
+                    <dd>{session?.invoicesQueued ?? 0}</dd>
+                    <dt>Invoices downloaded:</dt>
+                    <dd>{session?.invoicesDownloaded ?? 0}</dd>
+                    <dt>Invoice errors:</dt>
+                    <dd>{session?.invoiceErrors ?? 0}</dd>
+                    <dt>Started:</dt>
+                    <dd>{formatTimestamp(session?.startedAt)}</dd>
+                    <dt>Completed:</dt>
+                    <dd>{formatTimestamp(session?.completedAt)}</dd>
+                  </dl>
+                </>
+              ) : null}
+              {activeError ? (
+                <p className="error-text">{activeError}</p>
+              ) : (
+                session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>
+              )}
+              {showDiagnostics && (
+                <div className="diagnostics-card">
+                  <div>
+                    Share diagnostics so we can debug faster. This includes extension version,
+                    counts, and error context (no order data).
                   </div>
+                  <div className="diagnostics-actions">
+                    <button type="button" className="secondary-button" onClick={copyDiagnostics}>
+                      Copy diagnostics
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={downloadDiagnostics}
+                    >
+                      Download diagnostics.txt
+                    </button>
+                    {canEmailDiagnostics ? (
+                      <a
+                        className="secondary-button"
+                        href={supportMailto}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Email support
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={openDiagnosticsIssue}
+                    >
+                      Open issue
+                    </button>
+                  </div>
+                  {diagnosticsNotice ? (
+                    <div className="diagnostics-note">{diagnosticsNotice}</div>
+                  ) : null}
                 </div>
-
-                <div className="highlight-card">
-                  <div className="highlight-label">Busiest day</div>
-                  <div className="highlight-value">{summary.busiestDay ?? '—'}</div>
-                  <div className="highlight-label" style={{ marginTop: '8px' }}>
-                    Top period ({summary.topPeriod ? 'based on filter' : '—'})
-                  </div>
-                  <div className="highlight-value">
-                    {summary.topPeriod ? `${summary.topPeriod.label} (${summary.topPeriod.count})` : '—'}
-                  </div>
+              )}
+              {canRetryScrape && (
+                <div className="retry-hint">
+                  <strong>Helper tab failed.</strong> Make sure the Amazon Orders page is open and
+                  you are signed in, then retry.
                 </div>
-
-                <div className="highlight-card">
-                  <div className="highlight-label">Top items</div>
-                  {summary.topItems.length ? (
-                    summary.topItems.map((item) => (
-                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{item.label}</span>
-                        <span className="highlight-label">x{item.count}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="highlight-label">No items yet</div>
-                  )}
-                  <div className="highlight-row" style={{ marginTop: '8px' }}>
-                    <div>
-                      <div className="highlight-label">Unique items</div>
-                      <div className="highlight-value">{summary.uniqueItems}</div>
-                    </div>
-                    <div>
-                      <div className="highlight-label">Repeated items</div>
-                      <div className="highlight-value">{summary.repeatItems}</div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="view-actions">
-              {canDownload ? (
+              )}
+              {canRetryScrape && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
+                  onClick={async () => {
+                    setLoading(true);
+                    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+                      type: 'START_SCRAPE',
+                      payload: {
+                        year: session?.yearFilter,
+                        timeFilterValue: session?.timeFilterValue,
+                        timeFilterLabel: session?.timeFilterLabel,
+                        downloadInvoices: session?.downloadInvoicesRequested,
+                      },
+                    });
+                    if (!response.success) {
+                      setError(response.error ?? 'Failed to retry export');
+                    } else if (response.data?.state) {
+                      setSession(response.data.state);
+                      setError(null);
+                    }
+                    setLoading(false);
+                  }}
+                  disabled={loading}
+                >
+                  Retry export
+                </button>
+              )}
+              {canDownload && (
                 <button
                   type="button"
                   onClick={handleDownloadCsv}
@@ -943,320 +1246,127 @@ const App = () => {
                 >
                   Download CSV
                 </button>
+              )}
+              {session?.invoicesQueued ? (
+                <div className="progress-container">
+                  <div className="progress-label">
+                    Invoices: {session.invoicesDownloaded}/{session.invoicesQueued} (errors:{' '}
+                    {session.invoiceErrors ?? 0})
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          ((session.invoicesDownloaded ?? 0) /
+                            Math.max(session.invoicesQueued ?? 1, 1)) *
+                            100,
+                        ).toFixed(1)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
               ) : null}
-              {shouldPromptInvoiceDownload ? (
+              {showCancelInvoices && (
                 <button
                   type="button"
-                  onClick={handleStartInvoiceDownloads}
-                  className={`secondary-button ${loading ? 'disabled' : ''}`}
-                  disabled={loading}
+                  onClick={async () => {
+                    setLoading(true);
+                    const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
+                      type: 'CANCEL_INVOICE_DOWNLOADS',
+                    });
+                    if (response.success && response.data?.state) {
+                      setSession(response.data.state);
+                    }
+                    setLoading(false);
+                  }}
+                  className="secondary-button"
+                  style={{ marginTop: '8px' }}
                 >
-                  Download invoices
+                  Cancel invoice downloads
                 </button>
+              )}
+              {invoiceErrorHint ? (
+                <div className="error-text" style={{ marginTop: '8px' }}>
+                  <div>{invoiceErrorHint}</div>
+                  {session?.lastInvoiceOrderUrl ? (
+                    <a
+                      href={session.lastInvoiceOrderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="error-link"
+                    >
+                      Open order details
+                    </a>
+                  ) : null}
+                </div>
               ) : null}
-            </div>
-          </section>
-        ) : viewMode === 'invoices' ? (
-          <section className="status-block">
-            <div className="highlight-card">
-              <div className="highlight-label">Failed invoices</div>
-              <div className="highlight-value">{invoiceFailures.length}</div>
-              <div className="helper-text">
-                Review each order and retry downloads once you have enabled multiple downloads in your browser.
-              </div>
-            </div>
-            {invoiceFailures.length ? (
-              <div className="invoice-failure-list">
-                {invoiceFailures.map((failure) => (
-                  <div key={failure.orderId} className="invoice-failure-item">
-                    <div className="invoice-failure-row">
-                      <span>{failure.orderId}</span>
-                      {failure.orderDetailsUrl ? (
-                        <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
-                          Open order
-                        </a>
-                      ) : null}
+              {hasInvoiceFailures ? (
+                <div className="invoice-failure-card">
+                  <div className="invoice-failure-title">Failed invoices</div>
+                  {invoiceFailures.slice(0, 3).map((failure) => (
+                    <div key={failure.orderId} className="invoice-failure-entry">
+                      <div className="invoice-failure-row">
+                        <span>{failure.orderId}</span>
+                        {failure.orderDetailsUrl ? (
+                          <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
+                            Open
+                          </a>
+                        ) : null}
+                      </div>
+                      <div className="invoice-failure-message">{failure.message}</div>
                     </div>
-                    <div className="invoice-failure-message">{failure.message}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="helper-text">No failed invoices right now.</div>
-            )}
-            <div className="view-actions">
-              {canRetryFailedInvoices ? (
-                <button
-                  type="button"
-                  className={`secondary-button ${loading ? 'disabled' : ''}`}
-                  onClick={handleRetryFailedInvoices}
-                  disabled={loading}
-                >
-                  Retry failed invoices
-                </button>
-              ) : null}
-            </div>
-          </section>
-        ) : isEmptyResult && !showFilterForm ? (
-          <section className="status-block">
-            <div className="hero-card">
-              <div className="hero-body">
-                <img src={heroOrders} alt="No orders" className="illustration" />
-                <div>
-                  <p className="hero-title">No orders found</p>
-                  <p className="hero-copy">
-                    Amazon shows no orders for this timeframe. Try another range or refresh the Orders page to verify
-                    the filter.
-                  </p>
+                  ))}
+                  {invoiceFailures.length > 3 ? (
+                    <div className="helper-text">And {invoiceFailures.length - 3} more…</div>
+                  ) : null}
+                  {invoiceFailures.length > 3 ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      style={{ marginTop: '8px' }}
+                      onClick={() => setView('invoices')}
+                    >
+                      View all failures
+                    </button>
+                  ) : null}
+                  {canRetryFailedInvoices ? (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      style={{ marginTop: '8px' }}
+                      onClick={handleRetryFailedInvoices}
+                      disabled={loading}
+                    >
+                      Retry failed invoices
+                    </button>
+                  ) : null}
                 </div>
-              </div>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={loading}
-                style={{ marginTop: '12px' }}
-                onClick={handleChooseAnotherTimeframe}
-              >
-                Choose another timeframe
-              </button>
-            </div>
-          </section>
-        ) : (
-          <section className="status-block">
-            {isBlockedPage && <p className="status-warning">Please open the Amazon order history page before starting an export.</p>}
-            <p style={{ margin: '0 0 8px' }}>
-              <strong>Status:</strong> {statusMessage}
-            </p>
-          <p style={{ margin: 0 }}>
-            Filtering: {session?.timeFilterLabel ?? session?.yearFilter ?? 'All'}
-          </p>
-          {showProgressDetails ? (
-            <>
-              {ordersInRange ? (
-                <p className="helper-text" style={{ marginTop: '4px' }}>
-                  Amazon shows {ordersInRange} orders for this timeframe.
-                </p>
               ) : null}
-              <div className="progress-container" style={{ marginTop: '8px' }}>
-                <div className="progress-label">
-                  Orders: {ordersCollectedDisplay}/{ordersTotalDisplay}
-                  {ordersCapSuffix}
-                </div>
-                <div className="progress-bar">
-                  <div
-                    className="progress-bar-fill"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        ((ordersCollectedDisplay ?? 0) / ordersProgressTotal) * 100,
-                      ).toFixed(1)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <dl className="definition-list">
-                <dt>Orders collected:</dt>
-                <dd>
-                  {ordersCollectedDisplay}/{ordersTotalDisplay}
-                  {ordersCapSuffix}
-                </dd>
-                <dt>Pages:</dt>
-                <dd>{pagesScraped || '—'}</dd>
-                <dt>ETA:</dt>
-                <dd>{etaLabel ?? '—'}</dd>
-                <dt>Invoices queued:</dt>
-                <dd>{session?.invoicesQueued ?? 0}</dd>
-                <dt>Invoices downloaded:</dt>
-                <dd>{session?.invoicesDownloaded ?? 0}</dd>
-                <dt>Invoice errors:</dt>
-                <dd>{session?.invoiceErrors ?? 0}</dd>
-                <dt>Started:</dt>
-                <dd>{formatTimestamp(session?.startedAt)}</dd>
-                <dt>Completed:</dt>
-                <dd>{formatTimestamp(session?.completedAt)}</dd>
-              </dl>
-            </>
-          ) : null}
-          {activeError ? <p className="error-text">{activeError}</p> : session?.message && <p style={{ marginTop: '8px' }}>{session.message}</p>}
-          {showDiagnostics && (
-            <div className="diagnostics-card">
-              <div>Share diagnostics so we can debug faster. This includes extension version, counts, and error context (no order data).</div>
-              <div className="diagnostics-actions">
-                <button type="button" className="secondary-button" onClick={copyDiagnostics}>
-                  Copy diagnostics
-                </button>
-                <button type="button" className="secondary-button" onClick={downloadDiagnostics}>
-                  Download diagnostics.txt
-                </button>
-                {canEmailDiagnostics ? (
-                  <a className="secondary-button" href={supportMailto} target="_blank" rel="noreferrer">
-                    Email support
-                  </a>
-                ) : null}
-                <button type="button" className="secondary-button" onClick={openDiagnosticsIssue}>
-                  Open issue
-                </button>
-              </div>
-              {diagnosticsNotice ? <div className="diagnostics-note">{diagnosticsNotice}</div> : null}
-            </div>
+            </section>
           )}
-          {canRetryScrape && (
-            <div className="retry-hint">
-              <strong>Helper tab failed.</strong> Make sure the Amazon Orders page is open and you are signed in,
-              then retry.
-            </div>
-          )}
-          {canRetryScrape && (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{ marginTop: '8px' }}
-              onClick={async () => {
-                setLoading(true);
-                const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
-                  type: 'START_SCRAPE',
-                  payload: {
-                    year: session?.yearFilter,
-                    timeFilterValue: session?.timeFilterValue,
-                    timeFilterLabel: session?.timeFilterLabel,
-                    downloadInvoices: session?.downloadInvoicesRequested,
-                  },
-                });
-                if (!response.success) {
-                  setError(response.error ?? 'Failed to retry export');
-                } else if (response.data?.state) {
-                  setSession(response.data.state);
-                  setError(null);
-                }
-                setLoading(false);
-              }}
-              disabled={loading}
-            >
-              Retry export
-            </button>
-          )}
-          {canDownload && (
-            <button
-              type="button"
-              onClick={handleDownloadCsv}
-              className={`download-button ${loading ? 'disabled' : ''}`}
-              disabled={loading}
-            >
-              Download CSV
-            </button>
-          )}
-        {session?.invoicesQueued ? (
-          <div className="progress-container">
-            <div className="progress-label">
-              Invoices: {session.invoicesDownloaded}/{session.invoicesQueued} (errors: {session.invoiceErrors ?? 0})
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-bar-fill"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    ((session.invoicesDownloaded ?? 0) / Math.max(session.invoicesQueued ?? 1, 1)) * 100,
-                  ).toFixed(1)}%`,
-                }}
-              />
-            </div>
-          </div>
-        ) : null}
-          {showCancelInvoices && (
-            <button
-              type="button"
-              onClick={async () => {
-                setLoading(true);
-                const response = await sendRuntimeMessage<{ state: ScrapeSessionSnapshot }>({
-                  type: 'CANCEL_INVOICE_DOWNLOADS',
-                });
-                if (response.success && response.data?.state) {
-                  setSession(response.data.state);
-                }
-                setLoading(false);
-              }}
-              className="secondary-button"
-              style={{ marginTop: '8px' }}
-            >
-              Cancel invoice downloads
-            </button>
-          )}
-          {invoiceErrorHint ? (
-            <div className="error-text" style={{ marginTop: '8px' }}>
-              <div>{invoiceErrorHint}</div>
-              {session?.lastInvoiceOrderUrl ? (
-                <a
-                  href={session.lastInvoiceOrderUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="error-link"
-                >
-                  Open order details
-                </a>
-              ) : null}
-            </div>
-          ) : null}
-          {hasInvoiceFailures ? (
-            <div className="invoice-failure-card">
-              <div className="invoice-failure-title">Failed invoices</div>
-              {invoiceFailures.slice(0, 3).map((failure) => (
-                <div key={failure.orderId} className="invoice-failure-entry">
-                  <div className="invoice-failure-row">
-                    <span>{failure.orderId}</span>
-                    {failure.orderDetailsUrl ? (
-                      <a href={failure.orderDetailsUrl} target="_blank" rel="noreferrer">
-                        Open
-                      </a>
-                    ) : null}
-                  </div>
-                  <div className="invoice-failure-message">{failure.message}</div>
-                </div>
-              ))}
-              {invoiceFailures.length > 3 ? (
-                <div className="helper-text">And {invoiceFailures.length - 3} more…</div>
-              ) : null}
-              {invoiceFailures.length > 3 ? (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  style={{ marginTop: '8px' }}
-                  onClick={() => setView('invoices')}
-                >
-                  View all failures
-                </button>
-              ) : null}
-              {canRetryFailedInvoices ? (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  style={{ marginTop: '8px' }}
-                  onClick={handleRetryFailedInvoices}
-                  disabled={loading}
-                >
-                  Retry failed invoices
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
-      )}
         </div>
-    </div>
-
-    <footer className="privacy-note sticky-footer">
-      <div>All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your device.</div>
-      <div className="footer-links">
-        {version ? <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span> : null}
-        {supportMailto ? (
-          <a href={supportMailto} target="_blank" rel="noreferrer" className="footer-link">
-            Email support
-          </a>
-        ) : null}
-        <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
-          Send feedback
-        </a>
       </div>
+
+      <footer className="privacy-note sticky-footer">
+        <div>
+          All scraping, CSVs, and invoice downloads run locally in your browser. No data leaves your
+          device.
+        </div>
+        <div className="footer-links">
+          {version ? (
+            <span style={{ fontSize: 11, color: '#6b7280' }}>Version {version}</span>
+          ) : null}
+          {supportMailto ? (
+            <a href={supportMailto} target="_blank" rel="noreferrer" className="footer-link">
+              Email support
+            </a>
+          ) : null}
+          <a href={FEEDBACK_URL} target="_blank" rel="noreferrer" className="footer-link">
+            Send feedback
+          </a>
+        </div>
       </footer>
     </div>
   );

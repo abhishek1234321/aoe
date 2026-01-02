@@ -5,7 +5,14 @@ import { describe, expect, it } from 'vitest';
 import { applyTimeFilter, extractTimeFilters } from '../src/shared/timeFilters';
 
 const loadFilterDom = () => {
-  const filePath = path.resolve(__dirname, '..', 'docs', 'samples', 'amazon.in', 'time-filter.html');
+  const filePath = path.resolve(
+    __dirname,
+    '..',
+    'docs',
+    'samples',
+    'amazon.in',
+    'time-filter.html',
+  );
   const html = readFileSync(filePath, 'utf-8');
   return new JSDOM(html);
 };

@@ -3,6 +3,7 @@
 Work-in-progress browser extension that exports Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to CSVs and optionally downloads invoices. See `docs/PLAN.md` for architecture/roadmap.
 
 ## Privacy
+
 - All export processing, CSV generation, and invoice downloads happen locally in your browser; no order data is sent off-device.
 - If a future feature needs to call external services, it must be explicitly consented to by the user before any data leaves the machine.
 - Privacy policy (for store listing): `docs/privacy.md` (hosted via GitHub Pages).
@@ -19,21 +20,22 @@ Work-in-progress browser extension that exports Amazon.in, Amazon.com, Amazon.ca
 
 ## Scripts
 
-| Command            | Description                               |
-| ------------------ | ----------------------------------------- |
-| `npm run dev`      | Builds extension assets with watch mode   |
-| `npm run build`    | Production build (minified, no sourcemap)  |
-| `npm run clean`    | Remove `dist/`                             |
-| `npm run lint`     | ESLint across `src`                       |
-| `npm run test`     | Vitest (unit/integration)                 |
-| `npm run e2e`      | Playwright E2E against local fixtures     |
-| `npm run e2e:install` | Install Playwright Chromium            |
-| `npm run typecheck`| TypeScript `--noEmit` checks              |
-| `npm run format`   | Prettier write                            |
-| `npm run format:check` | Prettier verify                       |
-| `npm run security:audit` | npm audit (high/critical)          |
+| Command                  | Description                               |
+| ------------------------ | ----------------------------------------- |
+| `npm run dev`            | Builds extension assets with watch mode   |
+| `npm run build`          | Production build (minified, no sourcemap) |
+| `npm run clean`          | Remove `dist/`                            |
+| `npm run lint`           | ESLint across `src`                       |
+| `npm run test`           | Vitest (unit/integration)                 |
+| `npm run e2e`            | Playwright E2E against local fixtures     |
+| `npm run e2e:install`    | Install Playwright Chromium               |
+| `npm run typecheck`      | TypeScript `--noEmit` checks              |
+| `npm run format`         | Prettier write                            |
+| `npm run format:check`   | Prettier verify                           |
+| `npm run security:audit` | npm audit (high/critical)                 |
 
 E2E environment toggles:
+
 - Headless mode is not supported for extension tests (Chromium extensions require headed mode).
 - `E2E_SLOWMO=250` to slow browser actions for debugging.
 - `E2E_VIDEO=1` to record videos into `test-results/videos`.
@@ -42,18 +44,22 @@ E2E environment toggles:
 Export, CSV download, invoice downloads (opt-in), and highlights are implemented and evolving.
 
 ## Fixtures
+
 - Sample HTML fixtures live in `docs/samples/` and are sanitized (no PII, no scripts).
 - When adding a new locale, follow `docs/samples/README.md`.
 - Validate fixtures with `npm run fixtures:check` (also enforced in CI).
 
 ## Security
+
 - We run CodeQL + Trivy scans in GitHub Actions and keep dependencies updated with Dependabot.
 - Report vulnerabilities via `SECURITY.md`.
 - Fixtures in `docs/samples` are sanitized and must not contain PII.
 - Optional local scan (if installed): `trivy fs . --severity HIGH,CRITICAL`
 
 ## Contributing
+
 See `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for guidance.
 
 ## License
+
 MIT. See `LICENSE`.

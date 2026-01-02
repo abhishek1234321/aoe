@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { parseInvoiceLinks, selectInvoiceLink } from '../src/shared/invoice';
 
 const loadPopover = () => {
-  const filePath = path.resolve(__dirname, '..', 'docs', 'samples', 'amazon.in', 'invoice-popover.html');
+  const filePath = path.resolve(
+    __dirname,
+    '..',
+    'docs',
+    'samples',
+    'amazon.in',
+    'invoice-popover.html',
+  );
   return readFileSync(filePath, 'utf-8');
 };
 

@@ -51,10 +51,15 @@ export const computeHighlights = (orders: OrderSummary[], timeFilterValue?: stri
     return null;
   };
 
-  const locale = typeof navigator !== 'undefined' ? navigator.languages?.[0] ?? navigator.language : 'en-IN';
+  const locale =
+    typeof navigator !== 'undefined' ? (navigator.languages?.[0] ?? navigator.language) : 'en-IN';
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const weekdayFormatter = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone });
-  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric', timeZone });
+  const monthFormatter = new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    year: 'numeric',
+    timeZone,
+  });
 
   const dayCounts = new Map<string, number>();
   const periodCounts = new Map<string, number>();

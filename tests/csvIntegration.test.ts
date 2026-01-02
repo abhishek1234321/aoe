@@ -24,7 +24,9 @@ describe('CSV flow (order parser -> CSV)', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]['Order ID']).toBe('111-1111111-1111111');
     expect(rows[0]['Invoice URL']).toContain('https://www.amazon.in/your-orders/invoice/popover');
-    expect(rows[0]['Order Details URL']).toContain('https://www.amazon.in/your-orders/order-details');
+    expect(rows[0]['Order Details URL']).toContain(
+      'https://www.amazon.in/your-orders/order-details',
+    );
     expect(rows[0].Items).toContain('Test Item');
     expect(rows[1]['Order ID']).toBe('Total (non-cancelled)');
   });

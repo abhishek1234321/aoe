@@ -1,11 +1,5 @@
 import { formatISO, isValid, parse } from 'date-fns';
-import {
-  OrderAction,
-  OrderItem,
-  OrderShipment,
-  OrderSummary,
-  OrderTotal,
-} from './types';
+import { OrderAction, OrderItem, OrderShipment, OrderSummary, OrderTotal } from './types';
 
 const ORDER_CARD_SELECTOR = '.order-card';
 const HEADER_ITEM_SELECTOR = '.order-header__header-list-item';
@@ -26,7 +20,14 @@ const ITEM_IMAGE_SELECTOR = 'img';
 const PRODUCT_IMAGE_FALLBACK_SELECTOR = '.product-image';
 const DATE_LABELS = ['order placed', 'ordered on'];
 const TOTAL_LABEL = 'total';
-const DATE_FORMATS = ['d MMMM yyyy', 'dd MMMM yyyy', 'MMMM d, yyyy', 'MMMM dd, yyyy', 'MMM d, yyyy', 'MMM dd, yyyy'];
+const DATE_FORMATS = [
+  'd MMMM yyyy',
+  'dd MMMM yyyy',
+  'MMMM d, yyyy',
+  'MMMM dd, yyyy',
+  'MMM d, yyyy',
+  'MMM dd, yyyy',
+];
 const ASIN_REGEX = /\/dp\/([A-Z0-9]{10})/i;
 const ORDER_ID_REGEX = /\b\d{3}-\d{7}-\d{7}\b/;
 
@@ -78,8 +79,7 @@ const getLabeledValue = (card: Element, labels: string | string[]): string | nul
     const labelText = getTrimmedText(item.querySelector(LABEL_TEXT_SELECTOR))?.toLowerCase();
     if (labelText && labelSet.has(labelText)) {
       const valueText =
-        getTrimmedText(item.querySelector(LABEL_VALUE_SELECTOR)) ||
-        getTrimmedText(item);
+        getTrimmedText(item.querySelector(LABEL_VALUE_SELECTOR)) || getTrimmedText(item);
       if (valueText) {
         return valueText;
       }
@@ -128,7 +128,9 @@ const extractOrderDetailsUrl = (card: Element): string | undefined => {
   if (detailsLink) {
     return detailsLink.getAttribute('href') || undefined;
   }
-  const hrefLink = links.find((anchor) => (anchor.getAttribute('href') || '').toLowerCase().includes('/order-details'));
+  const hrefLink = links.find((anchor) =>
+    (anchor.getAttribute('href') || '').toLowerCase().includes('/order-details'),
+  );
   return hrefLink?.getAttribute('href') || undefined;
 };
 
@@ -141,8 +143,10 @@ const extractShipments = (card: Element): OrderShipment[] => {
 };
 
 const buildShipment = (container: Element): OrderShipment => {
-  const statusPrimary = getTrimmedText(container.querySelector(PRIMARY_STATUS_SELECTOR)) || undefined;
-  const statusSecondary = getTrimmedText(container.querySelector(SECONDARY_STATUS_SELECTOR)) || undefined;
+  const statusPrimary =
+    getTrimmedText(container.querySelector(PRIMARY_STATUS_SELECTOR)) || undefined;
+  const statusSecondary =
+    getTrimmedText(container.querySelector(SECONDARY_STATUS_SELECTOR)) || undefined;
   const actions = extractActions(container);
   const items = extractItems(container);
   return {

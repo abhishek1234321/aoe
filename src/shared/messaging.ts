@@ -1,9 +1,5 @@
 import browser from 'webextension-polyfill';
-import type {
-  ScrapeCommandPayload,
-  ScrapeProgressPayload,
-  ScrapeSessionSnapshot,
-} from './types';
+import type { ScrapeCommandPayload, ScrapeProgressPayload, ScrapeSessionSnapshot } from './types';
 
 export type RuntimeMessage =
   | {
