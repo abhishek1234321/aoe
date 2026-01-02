@@ -38,11 +38,8 @@ Ideal for bookkeeping, budgeting, or archiving your purchases.
 - Icons: already in `public/icons/` (16/32/48/128/256).
 - Screenshots: at least 1, recommended 5.
 - Promo images (optional, recommended): 1280x800, 640x400, 440x280.
-
-To generate screenshots from fixtures:
-
-- Run `npm run e2e:install` once (Playwright browser).
-- Run `npm run screenshots` to save images into `docs/store/screenshots/`.
+Screenshot storage (manual):
+- Save your final store images in `docs/screenshots/` (tracked).
 
 ## Store upload package
 
@@ -65,11 +62,63 @@ VERSION=$(node -p "require('./package.json').version")
 - Category, language, and distribution regions.
 - Trader status (choose non-trader if this is a personal/OSS project).
 
+## Privacy form (suggested responses)
+
+Single purpose description:
+Export the user's Amazon Orders history to CSV from the Orders page, with optional invoice PDF
+downloads. All processing happens locally in the browser and runs only when the user starts an
+export.
+
+Permission justification (general):
+Permissions are used only to run the export on Amazon Orders pages and save outputs locally.
+No extra access or background collection.
+
+activeTab justification:
+Read the active Amazon Orders tab after the user clicks Start export to parse order data for the
+CSV.
+
+storage justification:
+Persist export progress and user preferences (time filter, notifications, marketplace) locally so
+the user can resume or reopen the popup.
+
+downloads justification:
+Save CSV files and optional invoice PDFs locally when the user chooses to download them.
+
+notifications justification:
+Optional completion alert, enabled by the user.
+
+Host permission justification:
+Limit content scripts to Amazon Orders pages (amazon.in, amazon.com) to read order history and
+invoice links needed for export.
+
+Remote code:
+No.
+
+Remote code justification (if shown):
+All code is bundled with the extension; no external scripts, eval, or remote modules.
+
+Data usage (check):
+- Personally identifiable information
+- Financial and payment information
+- Website content
+
+Data usage rationale (if asked):
+Order details on the Amazon Orders page may include names, addresses, order amounts, and item
+details that are needed to generate the CSV. Data is processed locally and not sent off-device.
+
+Certifications:
+- I do not sell or transfer user data to third parties, apart from the approved use cases.
+- I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+- I do not use or transfer user data to determine creditworthiness or for lending purposes.
+
+Privacy policy URL:
+https://raw.githubusercontent.com/abhishek1234321/aoe/main/PRIVACY.md
+
 ## Store metadata (fill before submission)
 
 - Support email: abhishek1234321@gmail.com
 - `SUPPORT_EMAIL` is set in `src/shared/constants.ts` to show the email support option in the popup.
-- Privacy policy URL: TODO (must be public, even if repo stays private)
+- Privacy policy URL: https://raw.githubusercontent.com/abhishek1234321/aoe/main/PRIVACY.md
 - Homepage URL: https://github.com/abhishek1234321/aoe
 - Issue tracker: https://github.com/abhishek1234321/aoe/issues/new
 
