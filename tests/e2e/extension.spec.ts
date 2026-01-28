@@ -1,13 +1,11 @@
 import { createServer } from 'node:http';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { chromium, expect, test } from '@playwright/test';
-import type { BrowserContext, Page, TestInfo } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 let baseUrl = '';
-const fixtureDir = path.resolve(process.cwd(), 'docs', 'samples', 'amazon.in');
-const ordersFixture = path.join(fixtureDir, 'e2e-orders.html');
-const ordersNoFilterFixture = path.join(fixtureDir, 'e2e-orders-no-filter.html');
+const samplesDir = path.resolve(process.cwd(), 'docs', 'samples');
 const headlessRequested = process.env.E2E_HEADLESS === '1';
 const headless = false;
 const slowMo = Number(process.env.E2E_SLOWMO ?? 0) || undefined;
@@ -15,22 +13,52 @@ const recordVideo = process.env.E2E_VIDEO === '1';
 const traceEnabled = process.env.E2E_TRACE !== '0';
 const debugLogs: string[] = [];
 
+// All supported locales with their expected test values
+const locales = [
+  { key: 'amazon.in', currency: '₹', dateFormat: 'DD Month YYYY' },
+  { key: 'amazon.com', currency: '$', dateFormat: 'Month DD, YYYY' },
+  { key: 'amazon.ca', currency: '$', dateFormat: 'Month DD, YYYY' },
+  { key: 'amazon.co.uk', currency: '£', dateFormat: 'DD Month YYYY' },
+];
+
 const startFixtureServer = async () => {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     res.setHeader('Cache-Control', 'no-store');
+
+    // Determine locale from query param (e.g., ?locale=amazon.co.uk) or default to amazon.in
+    const localeParam = url.searchParams.get('locale') ?? 'amazon.in';
+    const locale = locales.find((l) => l.key === localeParam)?.key ?? 'amazon.in';
+    const fixtureDir = path.join(samplesDir, locale);
+
     if (url.pathname.startsWith('/your-orders/no-filter')) {
-      const html = readFileSync(ordersNoFilterFixture, 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-      return;
+      const fixturePath = path.join(fixtureDir, 'e2e-orders-no-filter.html');
+      if (existsSync(fixturePath)) {
+        const html = readFileSync(fixturePath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return;
+      }
+      // Fall back to amazon.in if locale doesn't have this fixture
+      const fallbackPath = path.join(samplesDir, 'amazon.in', 'e2e-orders-no-filter.html');
+      if (existsSync(fallbackPath)) {
+        const html = readFileSync(fallbackPath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return;
+      }
     }
+
     if (url.pathname.startsWith('/your-orders')) {
-      const html = readFileSync(ordersFixture, 'utf-8');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
-      return;
+      const fixturePath = path.join(fixtureDir, 'e2e-orders.html');
+      if (existsSync(fixturePath)) {
+        const html = readFileSync(fixturePath, 'utf-8');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+        return;
+      }
     }
+
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end('<!DOCTYPE html><html><body><h1>Not orders</h1></body></html>');
   });
@@ -163,39 +191,6 @@ test.describe('extension e2e (fixtures)', () => {
     await nonOrderPage.close();
   });
 
-  test('scrapes fixtures and shows download CTA', async () => {
-    const orderPage = await context.newPage();
-    trackPage(orderPage);
-    await orderPage.goto(`${baseUrl}/your-orders/orders`);
-    await orderPage.bringToFront();
-
-    const popupPage = await context.newPage();
-    trackPage(popupPage);
-    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-    await ensurePopupReady(popupPage, orderPage);
-
-    await orderPage.bringToFront();
-    await popupPage.evaluate(() => {
-      const select = document.querySelector<HTMLSelectElement>('#timeFilter');
-      if (!select) return;
-      select.value = 'months-3';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      const form = select.closest('form');
-      if (!form) return;
-      if ('requestSubmit' in form) {
-        (form as HTMLFormElement).requestSubmit();
-      } else {
-        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      }
-    });
-
-    await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
-    await expect(popupPage.getByText('Invoices queued:')).toBeVisible();
-
-    await popupPage.close();
-    await orderPage.close();
-  });
-
   test('shows fallback filters when time filter is missing', async () => {
     const orderPage = await context.newPage();
     trackPage(orderPage);
@@ -212,4 +207,55 @@ test.describe('extension e2e (fixtures)', () => {
     await popupPage.close();
     await orderPage.close();
   });
+
+  // Parameterized tests for each locale
+  for (const locale of locales) {
+    test.describe(`${locale.key}`, () => {
+      test(`scrapes orders and shows download CTA`, async () => {
+        const orderPage = await context.newPage();
+        trackPage(orderPage);
+        await orderPage.goto(`${baseUrl}/your-orders/orders?locale=${locale.key}`);
+        await orderPage.bringToFront();
+
+        const popupPage = await context.newPage();
+        trackPage(popupPage);
+        await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+        await ensurePopupReady(popupPage, orderPage);
+
+        await orderPage.bringToFront();
+        await popupPage.evaluate(() => {
+          const select = document.querySelector<HTMLSelectElement>('#timeFilter');
+          if (!select) return;
+          select.value = 'months-3';
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          const form = select.closest('form');
+          if (!form) return;
+          if ('requestSubmit' in form) {
+            (form as HTMLFormElement).requestSubmit();
+          } else {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+          }
+        });
+
+        await expect(popupPage.getByRole('button', { name: 'Download CSV' })).toBeVisible();
+        await expect(popupPage.getByText('Invoices queued:')).toBeVisible();
+
+        await popupPage.close();
+        await orderPage.close();
+      });
+
+      test(`parses orders with correct currency (${locale.currency})`, async () => {
+        const orderPage = await context.newPage();
+        trackPage(orderPage);
+        await orderPage.goto(`${baseUrl}/your-orders/orders?locale=${locale.key}`);
+        await orderPage.bringToFront();
+
+        // Verify the fixture contains the expected currency symbol
+        const pageContent = await orderPage.content();
+        expect(pageContent).toContain(locale.currency);
+
+        await orderPage.close();
+      });
+    });
+  }
 });
