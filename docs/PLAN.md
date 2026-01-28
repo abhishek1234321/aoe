@@ -2,13 +2,13 @@
 
 ## Goals (Phase 1)
 
-- Export Amazon order history (amazon.in, amazon.com) to CSV, with optional invoice downloads.
+- Export Amazon order history (amazon.in, amazon.com, amazon.ca, amazon.co.uk) to CSV, with optional invoice downloads.
 - Keep runs stable via a 1,000-order cap and Amazon’s time filter options.
 - Keep user data local (no external calls) with explicit opt-in for optional permissions.
 
 ## Current Status
 
-- Multi-locale support for IN/US with fixtures, parsers, and tests.
+- Multi-locale support for IN/US/CA/UK with fixtures, parsers, and E2E tests.
 - Popup: time filter selection, export/reset, CSV download, invoice opt-in, notifications opt-in.
 - Highlights view (spend, top items, busiest days) + buyer breakdown.
 - Background export runs in a hidden tab to avoid user disruption; status badges and notifications supported.
@@ -21,15 +21,16 @@
 - Optional invoices + notifications with permission prompts.
 - Order-count hint via `.num-orders` label.
 - Popup UX polish (sticky header/footer, single scroll region).
-- E2E tests against local fixtures; fixture validation in CI.
-- Support for amazon.in/com.
+- E2E tests against local fixtures for all 4 locales; fixture validation in CI.
+- Full support for amazon.in/com/ca/co.uk.
+- Node 24 LTS upgrade with dependency updates.
 
 ## Next Up (prioritized)
 
 1. Store prep: finalize listing copy/assets, verify privacy policy hosting, and confirm release build settings. ⏳
 2. Invoice reliability: add retry for failed invoices + a short per-order failure list. 🚧
 3. Long-history UX: guidance + multi-run flow for >1,000 orders. ⏳
-4. Add CA/UK once fixtures and manual QA are validated. ⏳
+4. User feedback collection: post-export prompts, GitHub Discussions, Chrome Web Store reviews. ⏳
 5. Add new locales once fixtures are provided (AU/DE/FR/etc.). ⏳
 
 ## Risks / Watch
@@ -46,7 +47,7 @@
 
 ## Decisions (active)
 
-- Locale scope: amazon.in/com only for now; add CA/UK after validation.
+- Locale scope: amazon.in/com/ca/co.uk supported; add more locales as fixtures are provided.
 - Export language in UI (avoid “scrape” wording).
 - 1,000-order cap per run; time filter required.
 

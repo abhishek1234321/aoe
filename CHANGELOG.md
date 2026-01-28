@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog and this project follows Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+- E2E tests now cover all 4 locales (IN, US, CA, UK) with currency verification.
+
+### Changed
+
+- Upgraded minimum Node.js requirement from 22 to 24 LTS.
+- Updated dependencies to latest versions (Vite, Vitest, Playwright, React, TypeScript ESLint).
+
 ## [0.1.1] - 2025-12-29
 
 ### Added

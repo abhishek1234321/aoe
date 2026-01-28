@@ -13,7 +13,7 @@ Work-in-progress browser extension that exports Amazon.in, Amazon.com, Amazon.ca
 
 ## Getting Started
 
-1. Install Node.js 22+ and npm 10+.
+1. Install Node.js 24+ and npm 10+.
 2. Install dependencies: `npm install`
 3. Build in watch mode: `npm run dev`
 4. Load the `dist/` directory as an unpacked extension in Chrome/Edge or via `web-ext` for Firefox.

@@ -6,7 +6,7 @@ Export Amazon orders to CSV and optionally download invoices. Runs locally in yo
 
 ## Full description (final)
 
-Amazon Order Extractor helps you export order history from Amazon.in and Amazon.com into CSV.
+Amazon Order Extractor helps you export order history from Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk into CSV.
 
 Highlights:
 
@@ -32,6 +32,8 @@ Ideal for bookkeeping, budgeting, or archiving your purchases.
 - Host permissions:
   - `https://www.amazon.in/*`
   - `https://www.amazon.com/*`
+  - `https://www.amazon.ca/*`
+  - `https://www.amazon.co.uk/*`
 
 ## Assets needed
 
@@ -88,7 +90,7 @@ notifications justification:
 Optional completion alert, enabled by the user.
 
 Host permission justification:
-Limit content scripts to Amazon Orders pages (amazon.in, amazon.com) to read order history and
+Limit content scripts to Amazon Orders pages (amazon.in, amazon.com, amazon.ca, amazon.co.uk) to read order history and
 invoice links needed for export.
 
 Remote code:
