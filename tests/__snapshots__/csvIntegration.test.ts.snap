@@ -1,0 +1,84 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CSV snapshot tests > generates expected CSV structure for amazon.co.uk orders > csv-headers-uk 1`] = `
+[
+  "Order ID",
+  "Order Date",
+  "Items",
+  "Item Count",
+  "Buyer Name",
+  "Total Amount",
+  "Currency",
+  "Shipment Status",
+  "Order Details URL",
+  "Invoice URL",
+]
+`;
+
+exports[`CSV snapshot tests > generates expected CSV structure for amazon.com orders > csv-headers-us 1`] = `
+[
+  "Order ID",
+  "Order Date",
+  "Items",
+  "Item Count",
+  "Buyer Name",
+  "Total Amount",
+  "Currency",
+  "Shipment Status",
+  "Order Details URL",
+  "Invoice URL",
+]
+`;
+
+exports[`CSV snapshot tests > generates expected CSV structure for amazon.in orders > csv-headers 1`] = `
+[
+  "Order ID",
+  "Order Date",
+  "Items",
+  "Item Count",
+  "Buyer Name",
+  "Total Amount",
+  "Currency",
+  "Shipment Status",
+  "Order Details URL",
+  "Invoice URL",
+]
+`;
+
+exports[`CSV snapshot tests > generates expected CSV structure for amazon.in orders > csv-row-structure 1`] = `
+[
+  {
+    "hasBuyer": false,
+    "hasCurrency": true,
+    "hasDate": false,
+    "hasInvoiceUrl": true,
+    "hasItems": true,
+    "hasOrderDetailsUrl": true,
+    "hasOrderId": true,
+    "hasStatus": false,
+    "hasTotalAmount": true,
+  },
+  {
+    "hasBuyer": false,
+    "hasCurrency": true,
+    "hasDate": false,
+    "hasInvoiceUrl": false,
+    "hasItems": true,
+    "hasOrderDetailsUrl": true,
+    "hasOrderId": true,
+    "hasStatus": false,
+    "hasTotalAmount": true,
+  },
+  {
+    "hasBuyer": false,
+    "hasCurrency": true,
+    "hasDate": false,
+    "hasInvoiceUrl": false,
+    "hasItems": false,
+    "hasOrderDetailsUrl": false,
+    "hasOrderId": true,
+    "hasStatus": false,
+    "hasTotalAmount": true,
+  },
+]
+`;
