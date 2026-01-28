@@ -28,7 +28,8 @@
     "screenshots": "npm run build:e2e && node scripts/prepare-e2e.mjs && node scripts/capture-store-screenshots.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "postversion": "node scripts/sync-version.mjs"
   },
   "repository": {
     "type": "git",
