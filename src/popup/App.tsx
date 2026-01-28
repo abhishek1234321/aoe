@@ -58,6 +58,15 @@ type LocalSettings = {
   amazonHost?: string;
 };
 
+type PendingExport = {
+  selectedFilter: string;
+  downloadInvoices: boolean;
+  timestamp: number;
+};
+
+const PENDING_EXPORT_KEY = 'aoe:pending-export';
+const PENDING_EXPORT_TTL = 60000; // 1 minute TTL
+
 const formatTimestamp = (timestamp?: number) => {
   if (!timestamp) {
     return '—';
@@ -168,6 +177,19 @@ const App = () => {
     await browser.storage.local.set({ 'aoe:settings': { ...settings, ...updates } });
   }, []);
 
+  const savePendingExport = useCallback(async (filter: string, invoices: boolean) => {
+    const pending: PendingExport = {
+      selectedFilter: filter,
+      downloadInvoices: invoices,
+      timestamp: Date.now(),
+    };
+    await browser.storage.local.set({ [PENDING_EXPORT_KEY]: pending });
+  }, []);
+
+  const clearPendingExport = useCallback(async () => {
+    await browser.storage.local.remove(PENDING_EXPORT_KEY);
+  }, []);
+
   useEffect(() => {
     void browser.storage.local.get('aoe:settings').then((stored) => {
       const settings = stored['aoe:settings'] as LocalSettings | undefined;
@@ -176,6 +198,20 @@ const App = () => {
       }
       if (typeof settings?.amazonHost === 'string') {
         setPreferredAmazonHost(settings.amazonHost);
+      }
+    });
+  }, []);
+
+  // Restore pending export state after permission grant closes popup
+  useEffect(() => {
+    void browser.storage.local.get(PENDING_EXPORT_KEY).then(async (stored) => {
+      const pending = stored[PENDING_EXPORT_KEY] as PendingExport | undefined;
+      if (pending && Date.now() - pending.timestamp < PENDING_EXPORT_TTL) {
+        // Restore selections
+        setSelectedFilter(pending.selectedFilter);
+        setDownloadInvoices(pending.downloadInvoices);
+        // Clear pending export
+        await browser.storage.local.remove(PENDING_EXPORT_KEY);
       }
     });
   }, []);
@@ -248,11 +284,20 @@ const App = () => {
         : undefined);
     const downloadInvoicesFlag = Boolean(downloadInvoices);
     if (downloadInvoicesFlag) {
-      const granted = await requestPermission('downloads');
-      if (!granted) {
-        setError('Enable downloads permission to save invoices.');
-        setLoading(false);
-        return;
+      // Check if we already have permission
+      const hasPermission = await browser.permissions.contains({ permissions: ['downloads'] });
+      if (!hasPermission) {
+        // Save state before permission request (popup will close)
+        await savePendingExport(selectedFilter, downloadInvoices);
+        const granted = await requestPermission('downloads');
+        if (!granted) {
+          await clearPendingExport();
+          setError('Enable downloads permission to save invoices.');
+          setLoading(false);
+          return;
+        }
+        // If we get here, permission was granted without popup closing (rare)
+        await clearPendingExport();
       }
     }
 
@@ -823,10 +868,21 @@ const App = () => {
                       onChange={async (event) => {
                         const next = event.target.checked;
                         if (next) {
-                          const granted = await requestPermission('downloads');
-                          if (!granted) {
-                            setError('Enable downloads permission to save invoices.');
-                            return;
+                          // Check if we already have permission
+                          const hasPermission = await browser.permissions.contains({
+                            permissions: ['downloads'],
+                          });
+                          if (!hasPermission) {
+                            // Save state before permission request (popup may close)
+                            await savePendingExport(selectedFilter, true);
+                            const granted = await requestPermission('downloads');
+                            if (!granted) {
+                              await clearPendingExport();
+                              setError('Enable downloads permission to save invoices.');
+                              return;
+                            }
+                            // Permission granted - clear pending (state already restored)
+                            await clearPendingExport();
                           }
                         }
                         setDownloadInvoices(next);
