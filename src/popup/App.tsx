@@ -103,7 +103,9 @@ const App = () => {
   const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [preferredAmazonHost, setPreferredAmazonHost] = useState<string | null>(null);
+  const [feedbackDismissed, setFeedbackDismissed] = useState<boolean>(false);
   const showNotificationTest = import.meta.env.DEV;
+  const REVIEW_URL = 'https://chromewebstore.google.com/detail/amazon-order-extractor';
 
   useEffect(() => {
     void refresh();
@@ -1077,6 +1079,28 @@ const App = () => {
                   </button>
                 ) : null}
               </div>
+              {!feedbackDismissed && summary.totalOrders > 0 ? (
+                <div className="feedback-prompt">
+                  <div className="feedback-text">Found this useful? Help others discover it!</div>
+                  <div className="feedback-actions">
+                    <a
+                      href={REVIEW_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="secondary-button"
+                    >
+                      Leave a review
+                    </a>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setFeedbackDismissed(true)}
+                    >
+                      Maybe later
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : viewMode === 'invoices' ? (
             <section className="status-block">

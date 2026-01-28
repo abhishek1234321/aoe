@@ -282,6 +282,49 @@ body {
   color: #92400e;
 }
 
+.feedback-prompt {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  text-align: center;
+}
+
+.feedback-text {
+  font-size: 13px;
+  color: #92400e;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.feedback-actions .secondary-button {
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.text-button {
+  background: none;
+  border: none;
+  color: #78716c;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+}
+
+.text-button:hover {
+  color: #57534e;
+}
+
 .download-button {
   margin-top: 12px;
   padding: 8px 12px;
