@@ -40,7 +40,7 @@ Ideal for bookkeeping, budgeting, or archiving your purchases.
 - Icons: already in `public/icons/` (16/32/48/128/256).
 - Screenshots: at least 1, recommended 5.
 - Promo images (optional, recommended): 1280x800, 640x400, 440x280.
-Screenshot storage (manual):
+  Screenshot storage (manual):
 - Save your final store images in `docs/screenshots/` (tracked).
 
 ## Store upload package
@@ -100,6 +100,7 @@ Remote code justification (if shown):
 All code is bundled with the extension; no external scripts, eval, or remote modules.
 
 Data usage (check):
+
 - Personally identifiable information
 - Financial and payment information
 - Website content
@@ -109,6 +110,7 @@ Order details on the Amazon Orders page may include names, addresses, order amou
 details that are needed to generate the CSV. Data is processed locally and not sent off-device.
 
 Certifications:
+
 - I do not sell or transfer user data to third parties, apart from the approved use cases.
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.

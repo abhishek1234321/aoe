@@ -14,11 +14,78 @@
 
 ## Tests / checks
 
-- Unit tests: `npm run test:ci` (Vitest; fixtures in `docs/samples/amazon.in`).
+- Unit tests: `npm run test:ci` (Vitest; fixtures in `docs/samples/`).
 - Type check: `npm run typecheck`.
 - Lint/format: `npm run lint`, `npm run format:check`.
 - E2E (fixtures): `npm run e2e` after `npm run e2e:install`.
 - Security audit: `npm run security:audit` (high/critical).
+- **Full check**: `npm run check` runs lint + typecheck + tests + format check.
+
+## Agent workflow (IMPORTANT)
+
+### Definition of done
+
+Before any change is considered complete, ALL of these must pass:
+
+1. `npm run check` passes (lint + typecheck + tests + format)
+2. No new TypeScript errors introduced
+3. No new ESLint warnings introduced
+4. All existing tests still pass
+5. New functionality has corresponding tests (see testing requirements below)
+6. Changes are committed with a descriptive message
+
+### Testing requirements by change type
+
+| Change Type                           | Required Testing                                        |
+| ------------------------------------- | ------------------------------------------------------- |
+| Bug fix                               | Add regression test that would have caught the bug      |
+| New utility function in `src/shared/` | Add unit test in `tests/`                               |
+| Parser/formatter changes              | Update existing tests or add new ones with fixture data |
+| UI changes in popup                   | Run `npm run e2e` to verify flows still work            |
+| New message type                      | Document in types, test integration if complex          |
+| Selector changes (Amazon markup)      | Update fixtures in `docs/samples/` and related tests    |
+
+### Verification workflow
+
+```
+1. Before making changes:
+   - Run `npm run check` to establish baseline
+   - Understand existing tests for the area you're modifying
+
+2. Making changes:
+   - Write/update test first when possible (defines expected behavior)
+   - Make the code change
+   - Run `npm run typecheck` for fast feedback on type errors
+   - Run `npm run test:ci` to verify unit tests pass
+
+3. Before committing:
+   - Run `npm run check` (full verification)
+   - For UI/flow changes, also run `npm run e2e`
+   - Commit only if all checks pass
+
+4. After committing:
+   - Verify the commit includes all intended changes
+   - Do not amend pushed commits
+```
+
+### Fast feedback commands
+
+| Command             | Speed | When to use              |
+| ------------------- | ----- | ------------------------ |
+| `npm run typecheck` | ~2s   | After any code change    |
+| `npm run test:ci`   | ~3s   | After logic changes      |
+| `npm run lint`      | ~2s   | Before committing        |
+| `npm run check`     | ~8s   | Before every commit      |
+| `npm run e2e`       | ~30s  | Only for UI/flow changes |
+
+### What NOT to do
+
+- Do not skip tests to "fix later"
+- Do not commit with failing tests
+- Do not modify `docs/samples/` fixtures without updating related tests
+- Do not add external API calls without explicit user consent (privacy-first)
+- Do not use `git push --force` on main branch
+- Do not remove existing tests without justification
 
 ## Key behaviors & files
 
@@ -27,6 +94,48 @@
 - Background session state: merges progress, caps runs at `MAX_ORDERS_PER_RUN` (1000), persists in `browser.storage.session` (`src/background/index.ts`, `src/shared/types.ts`).
 - Exporting: content script parses order cards, auto-clicks next page, and resumes via sessionStorage; background opens a hidden tab to avoid disrupting the user (`src/content/index.ts`, `src/background/index.ts`).
 - Manifest/icons: `public/manifest.json`, icons in `public/icons/` (Amazon-themed SVG + generated PNGs).
+
+## Architecture overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Extension Structure                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    messages     ┌──────────────────┐          │
+│  │    Popup     │◄───────────────►│    Background    │          │
+│  │  (React UI)  │                 │ (Service Worker) │          │
+│  └──────────────┘                 └────────┬─────────┘          │
+│        │                                   │                     │
+│        │ user clicks                       │ opens hidden tab    │
+│        ▼                                   ▼                     │
+│  ┌──────────────┐    messages     ┌──────────────────┐          │
+│  │   Shared     │◄───────────────►│  Content Script  │          │
+│  │  Utilities   │                 │  (Amazon page)   │          │
+│  └──────────────┘                 └──────────────────┘          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Key files by module:
+
+- **Popup**: `src/popup/App.tsx` (main UI), `src/popup/App.css` (styles)
+- **Background**: `src/background/index.ts` (message handling, session state)
+- **Content**: `src/content/index.ts` (DOM scraping, page navigation)
+- **Shared**: `src/shared/*.ts` (parsers, formatters, types, constants)
+
+## Test file locations
+
+| Source File                 | Test File                                           | What's Tested                           |
+| --------------------------- | --------------------------------------------------- | --------------------------------------- |
+| `src/shared/orderParser.ts` | `tests/orderParser.test.ts`                         | Order card parsing from HTML            |
+| `src/shared/csv.ts`         | `tests/csv.test.ts`, `tests/csvIntegration.test.ts` | CSV generation                          |
+| `src/shared/format.ts`      | `tests/format.test.ts`                              | Date/currency formatting                |
+| `src/shared/highlights.ts`  | `tests/highlights.test.ts`                          | Spend analytics                         |
+| `src/shared/timeFilters.ts` | `tests/yearFilter.test.ts`                          | Time filter parsing                     |
+| `src/shared/invoice.ts`     | `tests/invoiceParser.test.ts`                       | Invoice URL extraction                  |
+| E2E flows                   | `tests/e2e/extension.spec.ts`                       | Full extension integration              |
+| Fixtures                    | `tests/fixtures.test.ts`                            | Fixture validation (no PII, valid HTML) |
 
 ## Known gaps / cautions
 

@@ -23,6 +23,7 @@ Export Amazon orders to CSV. Privacy-first, runs locally.
 Amazon Order Extractor helps you export order history from Amazon (IN/US/CA/UK) into CSV format.
 
 Key features:
+
 - Choose a timeframe and export up to 1,000 orders per run
 - Optional invoice downloads with progress tracking
 - Highlights view: total spend, top items, busiest days
@@ -34,6 +35,7 @@ Perfect for bookkeeping, budgeting, or archiving your purchases.
 Hey Product Hunt! I built this because I wanted to track my Amazon spending without manually copying data.
 
 The extension:
+
 - Runs 100% locally (no data leaves your device)
 - Supports 4 marketplaces: amazon.in, amazon.com, amazon.ca, amazon.co.uk
 - Works in the background so you can keep browsing
@@ -41,6 +43,7 @@ The extension:
 Looking for honest feedback on the UX. Any rough edges or missing features you'd want?
 
 **Launch tips:**
+
 - Post Tuesday-Thursday at 12:01 AM PT
 - Prepare 5 screenshots showing the full export flow
 - Have a 30-45s demo GIF or video ready

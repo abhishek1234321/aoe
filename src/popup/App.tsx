@@ -677,13 +677,8 @@ const App = () => {
     const activeHost = getAmazonHostForUrl(activeUrl)?.baseUrl ?? null;
     const normalizedActiveHost = activeHost && supportedHostSet.has(activeHost) ? activeHost : null;
     const normalizedPreferredHost =
-      preferredAmazonHost && supportedHostSet.has(preferredAmazonHost)
-        ? preferredAmazonHost
-        : null;
-    const localeHost = getAmazonHostForLocale(
-      navigator.language,
-      supportedHosts,
-    ).baseUrl;
+      preferredAmazonHost && supportedHostSet.has(preferredAmazonHost) ? preferredAmazonHost : null;
+    const localeHost = getAmazonHostForLocale(navigator.language, supportedHosts).baseUrl;
     const resolvedHost =
       normalizedActiveHost ?? normalizedPreferredHost ?? localeHost ?? DEFAULT_AMAZON_HOST;
     const ordersUrl = getOrderHistoryUrl(resolvedHost);

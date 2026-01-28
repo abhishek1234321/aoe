@@ -19,7 +19,12 @@ export const AMAZON_ORDER_HISTORY_URLS = AMAZON_HOSTS.flatMap((host) =>
   host.orderHistoryPaths.map((path) => `${host.baseUrl}${path}`),
 );
 const ALLOW_LOCALHOST_E2E = import.meta.env?.VITE_E2E === 'true';
-export const SUPPORTED_AMAZON_HOST_KEYS = ['amazon.in', 'amazon.com', 'amazon.ca', 'amazon.co.uk'] as const;
+export const SUPPORTED_AMAZON_HOST_KEYS = [
+  'amazon.in',
+  'amazon.com',
+  'amazon.ca',
+  'amazon.co.uk',
+] as const;
 export const SUPPORTED_AMAZON_HOSTS = AMAZON_HOSTS.filter((host) =>
   SUPPORTED_AMAZON_HOST_KEYS.includes(host.key as (typeof SUPPORTED_AMAZON_HOST_KEYS)[number]),
 );
