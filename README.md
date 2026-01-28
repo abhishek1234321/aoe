@@ -1,5 +1,7 @@
 # Amazon Order Extractor
 
+[![CI](https://github.com/abhishek1234321/aoe/actions/workflows/ci.yml/badge.svg)](https://github.com/abhishek1234321/aoe/actions/workflows/ci.yml)
+
 Work-in-progress browser extension that exports Amazon.in, Amazon.com, Amazon.ca, and Amazon.co.uk order history to CSVs and optionally downloads invoices. See `docs/PLAN.md` for architecture/roadmap.
 
 ## Privacy
