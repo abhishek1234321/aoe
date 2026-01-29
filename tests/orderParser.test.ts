@@ -90,4 +90,162 @@ describe('order parser', () => {
     expect(orders[0].orderDetailsUrl).toContain('/your-orders/order-details');
     expect(orders[0].invoiceUrl).toContain('/your-orders/invoice');
   });
+
+  describe('empty orders page', () => {
+    it('returns empty array when no order cards exist', () => {
+      const dom = loadSample('amazon.com', 'empty-orders.html');
+      const orders = parseOrdersFromDocument(dom.window.document);
+      expect(orders).toHaveLength(0);
+    });
+
+    it('handles page with only page structure but no orders', () => {
+      const dom = new JSDOM(`
+        <html>
+          <body>
+            <div class="your-orders-content-container">
+              <div class="a-row a-spacing-base">
+                <form class="js-time-filter-form">
+                  <label class="time-filter__label">
+                    <span class="num-orders">0 orders</span> placed in
+                  </label>
+                  <select id="time-filter">
+                    <option value="months-3" selected>past 3 months</option>
+                  </select>
+                </form>
+              </div>
+              <div class="a-text-center">
+                Looks like you haven't placed an order in the last 3 months.
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      const orders = parseOrdersFromDocument(dom.window.document);
+      expect(orders).toHaveLength(0);
+    });
+  });
+
+  describe('Amazon Pay Later bill filtering', () => {
+    it('filters out Amazon Pay Later bill payments (fixture)', () => {
+      const dom = loadSample('amazon.in', 'pay-later-bill.html');
+      const orders = parseOrdersFromDocument(dom.window.document);
+      // Pay Later bills should be filtered out
+      expect(orders).toHaveLength(0);
+    });
+
+    it('filters out orders with "Amazon Pay Later Bill" title', () => {
+      const dom = new JSDOM(`
+        <div class="order-card">
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Order placed</span>
+            <span class="a-size-base">28 January 2026</span>
+          </div>
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Total</span>
+            <span class="a-size-base">₹2,500.00</span>
+          </div>
+          <div class="yohtmlc-order-id">
+            <span dir="ltr">405-2222222-2222222</span>
+          </div>
+          <div class="delivery-box">
+            <div class="item-box">
+              <div class="yohtmlc-product-title">
+                <a href="/some-other-url">Amazon Pay Later Bill</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+      const orders = parseOrdersFromDocument(dom.window.document);
+      expect(orders).toHaveLength(0);
+    });
+
+    it('filters out orders with "Amazon Pay Bill" title (variant)', () => {
+      const dom = new JSDOM(`
+        <div class="order-card">
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Order placed</span>
+            <span class="a-size-base">28 January 2026</span>
+          </div>
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Total</span>
+            <span class="a-size-base">₹500.00</span>
+          </div>
+          <div class="yohtmlc-order-id">
+            <span dir="ltr">405-3333333-3333333</span>
+          </div>
+          <div class="delivery-box">
+            <div class="item-box">
+              <div class="yohtmlc-product-title">
+                <a href="/dp/XXXXXXXXXX">Amazon Pay Bill</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+      const orders = parseOrdersFromDocument(dom.window.document);
+      expect(orders).toHaveLength(0);
+    });
+
+    it('keeps regular product orders (not Pay Later)', () => {
+      const dom = new JSDOM(`
+        <div class="order-card">
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Order placed</span>
+            <span class="a-size-base">28 January 2026</span>
+          </div>
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Total</span>
+            <span class="a-size-base">₹1,999.00</span>
+          </div>
+          <div class="yohtmlc-order-id">
+            <span dir="ltr">111-4444444-4444444</span>
+          </div>
+          <div class="delivery-box">
+            <div class="item-box">
+              <div class="yohtmlc-product-title">
+                <a href="/dp/B08N5WRWNW">Regular Product Item</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+      const orders = parseOrdersFromDocument(dom.window.document);
+      expect(orders).toHaveLength(1);
+      expect(orders[0].orderId).toBe('111-4444444-4444444');
+    });
+
+    it('keeps orders with mixed items (not all Pay Later)', () => {
+      const dom = new JSDOM(`
+        <div class="order-card">
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Order placed</span>
+            <span class="a-size-base">28 January 2026</span>
+          </div>
+          <div class="order-header__header-list-item">
+            <span class="a-text-caps">Total</span>
+            <span class="a-size-base">₹3,500.00</span>
+          </div>
+          <div class="yohtmlc-order-id">
+            <span dir="ltr">111-5555555-5555555</span>
+          </div>
+          <div class="delivery-box">
+            <div class="item-box">
+              <div class="yohtmlc-product-title">
+                <a href="/dp/B0BWF9ZQMN">Amazon Pay Later Bill</a>
+              </div>
+            </div>
+            <div class="item-box">
+              <div class="yohtmlc-product-title">
+                <a href="/dp/B08N5WRWNW">Regular Product</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+      const orders = parseOrdersFromDocument(dom.window.document);
+      // Mixed orders are kept (edge case - unlikely in practice)
+      expect(orders).toHaveLength(1);
+    });
+  });
 });

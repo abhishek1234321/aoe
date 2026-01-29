@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Your Orders - Empty (amazon.com)</title>
+  </head>
+  <body>
+    <section class="your-orders-content-container aok-relative js-yo-container">
+      <div class="your-orders-content-container__content js-yo-main-content">
+        <div class="a-section a-spacing-medium a-spacing-top-small">
+          <ul class="breadcrumbs">
+            <li class="breadcrumbs__crumb">
+              <a class="a-link-normal" href="/your-account/ref=ppx_yo2ov_dt_b_ya_link"
+                >Your Account</a
+              >
+            </li>
+            <li class="breadcrumbs__crumb breadcrumbs__crumb--divider">›</li>
+            <li class="breadcrumbs__crumb breadcrumbs__crumb--current">
+              <span class="a-color-state">Your Orders</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="a-row a-spacing-medium">
+          <div class="a-column a-span6">
+            <h1>Your Orders</h1>
+          </div>
+          <div class="a-column a-span6 a-span-last">
+            <div class="search-bar">
+              <form
+                method="get"
+                action="/your-orders/search/ref=ppx_yo2ov_dt_b_search"
+                class="a-spacing-none"
+              >
+                <input type="hidden" name="opt" value="ab" />
+                <div class="search-bar__input-container">
+                  <label for="searchOrdersInput" class="a-form-label"></label>
+                  <div class="a-search a-span12" aria-label="Search all orders">
+                    <i class="a-icon a-icon-search"></i>
+                    <input
+                      type="search"
+                      id="searchOrdersInput"
+                      placeholder="Search all orders"
+                      name="search"
+                      spellcheck="false"
+                      class="a-input-text a-span12"
+                      aria-label="Search all orders"
+                    />
+                  </div>
+                </div>
+                <div class="search-bar__button-container">
+                  <span class="a-button a-button-search" id="a-autoid-0">
+                    <span class="a-button-inner">
+                      <input
+                        class="a-button-input"
+                        type="submit"
+                        aria-labelledby="a-autoid-0-announce"
+                      />
+                      <span class="a-button-text" aria-hidden="true" id="a-autoid-0-announce"
+                        >Search Orders</span
+                      >
+                    </span>
+                  </span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="a-section a-spacing-medium page-tabs">
+          <ul>
+            <li class="page-tabs__tab page-tabs__tab--selected">Orders</li>
+            <li class="page-tabs__tab">
+              <a class="a-link-normal" href="/gp/buyagain?ref_=ppx_yo2ov_dt_b_tb_buy_again"
+                >Buy Again</a
+              >
+            </li>
+            <li class="page-tabs__tab">
+              <a
+                class="a-link-normal"
+                href="/your-orders/orders?ref_=ppx_yo2ov_dt_b_tb_open&amp;orderFilter=open"
+                >Not Yet Shipped</a
+              >
+            </li>
+            <li class="page-tabs__tab">
+              <a
+                class="a-link-normal"
+                href="/your-orders/orders?ref_=ppx_yo2ov_dt_b_tb_digital_m3&amp;orderFilter=digital"
+                >Digital Orders</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <div class="a-row a-spacing-base">
+          <form
+            method="get"
+            action="/your-orders/orders"
+            class="js-time-filter-form a-spacing-none"
+          >
+            <label
+              for="time-filter"
+              class="a-form-label time-filter__label aok-inline-block a-text-normal"
+            >
+              <span class="num-orders">0 orders</span> placed in
+            </label>
+            <span class="a-dropdown-container">
+              <select
+                name="timeFilter"
+                autocomplete="off"
+                id="time-filter"
+                tabindex="0"
+                class="a-native-dropdown a-declarative"
+              >
+                <option data-ref="d30" value="last30">last 30 days</option>
+                <option data-ref="m3" value="months-3" selected="">past 3 months</option>
+                <option data-ref="y2026" value="year-2026">2026</option>
+                <option data-ref="y2025" value="year-2025">2025</option>
+                <option data-ref="y2024" value="year-2024">2024</option>
+              </select>
+            </span>
+            <input type="hidden" name="ref_" value="ppx_yo2ov_dt_b_filter_all" />
+          </form>
+        </div>
+
+        <!-- No order cards - empty result -->
+        <div class="a-row a-spacing-extra-large a-spacing-top-large">
+          <div class="a-section a-spacing-top-medium a-text-center">
+            Looks like you haven't placed an order in the last 3 months.
+            <a class="a-link-normal" href="?timeFilter=year-2026">View orders in 2026</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

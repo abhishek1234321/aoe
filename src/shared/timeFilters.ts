@@ -4,6 +4,11 @@ export interface TimeFilterOption {
   year?: number;
 }
 
+export interface TimeFilterExtractResult {
+  filters: TimeFilterOption[];
+  selectedValue: string | null;
+}
+
 export interface TimeFilterApplyResult {
   changed: boolean;
   matched: boolean;
@@ -15,9 +20,13 @@ const YEAR_REGEX = /year-(\d{4})/i;
 const trimLabel = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
 
 export const extractTimeFilters = (doc: Document): TimeFilterOption[] => {
+  return extractTimeFiltersWithSelection(doc).filters;
+};
+
+export const extractTimeFiltersWithSelection = (doc: Document): TimeFilterExtractResult => {
   const select = doc.querySelector<HTMLSelectElement>('#time-filter');
   if (!select) {
-    return [];
+    return { filters: [], selectedValue: null };
   }
 
   const filters: TimeFilterOption[] = [];
@@ -35,7 +44,9 @@ export const extractTimeFilters = (doc: Document): TimeFilterOption[] => {
     });
   });
 
-  return filters;
+  const selectedValue = select.value || null;
+
+  return { filters, selectedValue };
 };
 
 export const applyTimeFilter = (
@@ -66,8 +77,18 @@ export const applyTimeFilter = (
   }
 
   select.value = targetValue;
+
+  // Dispatch change event for Amazon's JS, then submit form as fallback
   const EventCtor = (doc.defaultView?.Event ?? Event) as typeof Event;
   const event = new EventCtor('change', { bubbles: true });
   select.dispatchEvent(event);
+
+  // Submit the form directly to ensure navigation happens
+  // Amazon's JS might handle it, but this ensures the form submits
+  const form = select.closest('form');
+  if (form) {
+    form.submit();
+  }
+
   return { changed: true, matched: true };
 };

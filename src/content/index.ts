@@ -5,7 +5,7 @@ import { parseOrdersFromDocument } from '@shared/orderParser';
 import type { ScrapeProgressPayload, ScrapeSessionSnapshot } from '@shared/types';
 import type { ScraperStartPayload } from '@shared/scraperMessages';
 import { isScraperMessage } from '@shared/scraperMessages';
-import { applyTimeFilter, extractTimeFilters } from '@shared/timeFilters';
+import { applyTimeFilter, extractTimeFiltersWithSelection } from '@shared/timeFilters';
 
 const bannerId = '__aoe-dev-banner';
 const readyBannerId = '__aoe-ready-banner';
@@ -208,15 +208,18 @@ const ensureTimeFilter = async (payload: ScraperStartPayload) => {
 
 const extractFiltersWithRetry = async (timeoutMs = 8000, intervalMs = 150) => {
   const start = Date.now();
-  let filters: ReturnType<typeof extractTimeFilters> = [];
+  let result: ReturnType<typeof extractTimeFiltersWithSelection> = {
+    filters: [],
+    selectedValue: null,
+  };
   while (Date.now() - start < timeoutMs) {
-    filters = extractTimeFilters(document);
-    if (filters.length) {
-      return filters;
+    result = extractTimeFiltersWithSelection(document);
+    if (result.filters.length) {
+      return result;
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  return filters;
+  return result;
 };
 
 const executeScrape = async (payload: ScraperStartPayload) => {
@@ -249,8 +252,25 @@ const executeScrape = async (payload: ScraperStartPayload) => {
     const pagesScraped = getNextPageCount(payload);
     const invoiceCount = orders.filter((order) => Boolean(order.invoiceUrl)).length;
     const nextLink = getNextPageLink();
+    const willComplete = !nextLink;
 
-    debugLog('Parsed orders', { count: orders.length, invoiceCount, hasNext: Boolean(nextLink) });
+    debugLog('Parsed orders', {
+      count: orders.length,
+      ordersInRange,
+      invoiceCount,
+      hasNext: Boolean(nextLink),
+      willComplete,
+    });
+
+    debugLog('Sending progress update to background', {
+      ordersCount: orders.length,
+      ordersInRange,
+      pagesScraped,
+      invoicesQueued: invoiceCount,
+      hasMorePages: Boolean(nextLink),
+      completed: willComplete,
+    });
+
     const response = await dispatchProgress({
       orders,
       ordersInRange,
@@ -258,7 +278,14 @@ const executeScrape = async (payload: ScraperStartPayload) => {
       invoicesQueued: invoiceCount,
       hasMorePages: Boolean(nextLink),
       message: `Collected ${orders.length} orders from current page.`,
-      completed: !nextLink,
+      completed: willComplete,
+    });
+
+    debugLog('Progress update response', {
+      success: response.success,
+      error: response.error,
+      phase: response.data?.state?.phase,
+      ordersCollected: response.data?.state?.ordersCollected,
     });
 
     const nextState = response.success ? response.data?.state : undefined;
@@ -272,7 +299,11 @@ const executeScrape = async (payload: ScraperStartPayload) => {
       saveAutoContinuePayload(payload);
       nextLink.click();
     } else {
-      debugLog('Stopping auto-advance', { shouldContinue, hasNext: Boolean(nextLink) });
+      debugLog('Stopping auto-advance', {
+        shouldContinue,
+        hasNext: Boolean(nextLink),
+        nextPhase: nextState?.phase,
+      });
       saveAutoContinuePayload(null);
     }
   } catch (error) {
@@ -306,13 +337,13 @@ browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime
   ) {
     return waitForYearSelect()
       .then(() => extractFiltersWithRetry())
-      .then((filters) => {
-        debugLog('Extracted available filters', filters);
-        return { filters };
+      .then((result) => {
+        debugLog('Extracted available filters', result);
+        return { filters: result.filters, selectedValue: result.selectedValue };
       })
       .catch((error) => {
         debugLog('Failed to extract filters', error);
-        return { filters: [] };
+        return { filters: [], selectedValue: null };
       });
   }
 

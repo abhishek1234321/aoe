@@ -31,6 +31,10 @@ const DATE_FORMATS = [
 const ASIN_REGEX = /\/dp\/([A-Z0-9]{10})/i;
 const ORDER_ID_REGEX = /\b\d{3}-\d{7}-\d{7}\b/;
 
+// Amazon Pay Later bill payments are loan repayments, not actual product orders
+// They should be filtered out to avoid double-counting spend (amazon.in only)
+const AMAZON_PAY_LATER_TITLE_PATTERN = /amazon\s*pay\s*(later)?\s*bill/i;
+
 export const parseOrdersFromDocument = (doc: Document): OrderSummary[] => {
   const cards = Array.from(doc.querySelectorAll<HTMLDivElement>(ORDER_CARD_SELECTOR));
   return cards
@@ -54,6 +58,11 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
   const shipments = extractShipments(card);
   const itemCount = shipments.reduce((sum, shipment) => sum + shipment.items.length, 0);
 
+  // Filter out Amazon Pay Later bill payments (loan repayments, not actual orders)
+  if (isAmazonPayLaterBill(shipments)) {
+    return null;
+  }
+
   return {
     orderId,
     orderDateText: orderDateText || undefined,
@@ -68,6 +77,20 @@ const parseOrderCard = (card: Element): OrderSummary | null => {
     status: shipments[0]?.statusPrimary,
     shipments,
   };
+};
+
+/**
+ * Detects if an order is an Amazon Pay Later bill payment (amazon.in).
+ * These are loan repayments to Amazon's BNPL service, not actual product purchases.
+ * They should be filtered out to avoid double-counting spend.
+ */
+const isAmazonPayLaterBill = (shipments: OrderShipment[]): boolean => {
+  const allItems = shipments.flatMap((s) => s.items);
+  if (allItems.length === 0) {
+    return false;
+  }
+  // Check if ALL items in the order are Pay Later bills (title-based detection)
+  return allItems.every((item) => item.title && AMAZON_PAY_LATER_TITLE_PATTERN.test(item.title));
 };
 
 const getLabeledValue = (card: Element, labels: string | string[]): string | null => {
@@ -195,7 +218,10 @@ const extractItems = (box: Element): OrderItem[] => {
 };
 
 const buildItemFromContainer = (element: Element): OrderItem | null => {
-  const titleAnchor = element.querySelector<HTMLAnchorElement>(ITEM_TITLE_SELECTOR);
+  // Prefer .yohtmlc-product-title a (most accurate), fallback to generic link
+  const titleAnchor =
+    element.querySelector<HTMLAnchorElement>('.yohtmlc-product-title a') ||
+    element.querySelector<HTMLAnchorElement>(ITEM_TITLE_SELECTOR);
   const imageEl = element.querySelector<HTMLImageElement>(ITEM_IMAGE_SELECTOR);
   const imageAlt = imageEl?.getAttribute('alt')?.trim() || null;
   const title = titleAnchor?.textContent?.trim() || imageAlt || null;

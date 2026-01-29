@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_AMAZON_HOST,
   MAX_ORDERS_PER_RUN,
@@ -114,7 +114,11 @@ const App = () => {
   const [preferredAmazonHost, setPreferredAmazonHost] = useState<string | null>(null);
   const [feedbackDismissed, setFeedbackDismissed] = useState<boolean>(false);
   const showNotificationTest = import.meta.env.DEV;
-  const REVIEW_URL = 'https://chromewebstore.google.com/detail/amazon-order-extractor';
+  const REVIEW_URL =
+    'https://chromewebstore.google.com/detail/amazon-order-extractor/pakcfieekcdpbdbalejgppbfpmbifjkh/reviews';
+
+  // Track the runId we initiated to auto-download CSV when scraping completes
+  const initiatedRunIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -140,11 +144,20 @@ const App = () => {
     };
 
     const fetchFilters = async () => {
-      const response = await sendRuntimeMessage<{ filters: TimeFilterOption[] }>({
+      const response = await sendRuntimeMessage<{
+        filters: TimeFilterOption[];
+        selectedValue?: string | null;
+      }>({
         type: 'GET_AVAILABLE_FILTERS',
       });
       if (response.success && response.data?.filters?.length) {
         setAvailableFilters(response.data.filters);
+        // Pre-select the filter that's currently selected on Amazon's page
+        // Only on initial load (when selectedFilter is empty)
+        const amazonSelectedValue = response.data.selectedValue;
+        if (amazonSelectedValue) {
+          setSelectedFilter((current) => current || amazonSelectedValue);
+        }
       }
     };
 
@@ -317,6 +330,8 @@ const App = () => {
       setSession(response.data.state);
       setError(null);
       setDownloadInvoices(false);
+      // Track this runId for auto-download when completed
+      initiatedRunIdRef.current = response.data.state.runId ?? null;
     }
 
     setLoading(false);
@@ -497,17 +512,25 @@ const App = () => {
     if (!supportEmail) {
       return '';
     }
-    const subject = 'Amazon Order Extractor diagnostics';
+    // [AOE] prefix for easy Gmail filtering (filter: subject:[AOE])
+    const subject = `[AOE] Support request - v${version || '?'}`;
     const body = [
       'Hi,',
       '',
       'I ran into an issue with Amazon Order Extractor.',
-      'Please attach diagnostics.txt or paste diagnostics from the clipboard.',
       '',
+      '--- Please describe your issue below ---',
+      '',
+      '',
+      '',
+      '--- Diagnostics (auto-filled) ---',
       `Extension version: ${version || 'unknown'}`,
+      `Browser: ${navigator.userAgent}`,
       `Run ID: ${session?.runId ?? 'n/a'}`,
       `Phase: ${session?.phase ?? 'n/a'}`,
       `Error: ${activeError ?? 'n/a'}`,
+      '',
+      'Please attach diagnostics.txt or paste diagnostics from the clipboard if available.',
     ].join('\n');
     return `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }, [supportEmail, version, session?.runId, session?.phase, activeError]);
@@ -715,6 +738,22 @@ const App = () => {
       { value: `year-${current - 2}`, label: String(current - 2), year: current - 2 },
     ];
   }, [availableFilters]);
+
+  // Auto-download CSV when scraping completes (for scrapes we initiated)
+  useEffect(() => {
+    if (
+      session?.phase === 'completed' &&
+      session?.runId &&
+      session.runId === initiatedRunIdRef.current &&
+      session.orders?.length
+    ) {
+      // Clear ref first to prevent re-triggering
+      initiatedRunIdRef.current = null;
+      // Auto-download CSV (this also starts invoice downloads if requested)
+      void handleDownloadCsv();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ref check prevents duplicate downloads
+  }, [session?.phase, session?.runId, session?.orders?.length]);
 
   if (isOnOrderPage === false) {
     const supportedHosts = SUPPORTED_AMAZON_HOSTS;

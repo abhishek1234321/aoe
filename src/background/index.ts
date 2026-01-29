@@ -275,7 +275,14 @@ const handleStartScrape = ({
 };
 
 const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
-  debugLog('handleProgressUpdate', payload);
+  debugLog('handleProgressUpdate received', {
+    ordersCount: payload.orders?.length ?? 0,
+    ordersInRange: payload.ordersInRange,
+    completed: payload.completed,
+    phase: payload.phase,
+    hasMorePages: payload.hasMorePages,
+    message: payload.message,
+  });
   const changes: Partial<ScrapeSessionSnapshot> = {};
 
   if (typeof payload.ordersCollected === 'number') {
@@ -303,6 +310,7 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
     changes.phase = payload.phase;
   }
   if (payload.completed || payload.phase === 'completed') {
+    debugLog('Setting phase to completed', { completed: payload.completed, phase: payload.phase });
     changes.phase = 'completed';
     changes.completedAt = Date.now();
     changes.message = payload.message ?? 'Export completed';
@@ -313,9 +321,10 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
     changes.errorMessage = payload.errorMessage ?? payload.message ?? 'Unknown export error';
     changes.message = payload.message ?? 'Encountered an error while exporting';
   }
-  if (payload.orders && payload.orders.length) {
+  if (payload.orders) {
     changes.orders = payload.orders;
     if (payload.phase === 'completed' || payload.completed) {
+      // Set ordersCollected even if 0 (explicitly handle empty results)
       changes.ordersCollected = payload.orders.length;
     }
   }
@@ -330,9 +339,23 @@ const handleProgressUpdate = (payload: ScrapeProgressPayload) => {
       `Collected ${session.ordersLimit} orders — limit reached. Download or reset to export another batch.`;
   }
 
+  debugLog('Applying session changes', {
+    changes,
+    currentPhase: session.phase,
+    newPhase: changes.phase,
+  });
+
   updateSession(changes);
   updateBadge();
+
+  debugLog('Session after update', {
+    phase: session.phase,
+    ordersCollected: session.ordersCollected,
+    ordersInRange: session.ordersInRange,
+  });
+
   if (session.phase !== 'running') {
+    debugLog('Closing scrape tab because phase is not running', { phase: session.phase });
     void closeScrapeTab();
   }
 
@@ -846,23 +869,33 @@ browser.runtime.onMessage.addListener(
         return getActiveOrLastOrderTab()
           .then(async (tab) => {
             if (!tab?.id || !isSupportedAmazonUrl(tab.url)) {
-              return { success: true, data: { filters: getFilterFallback() } };
+              return { success: true, data: { filters: getFilterFallback(), selectedValue: null } };
             }
             try {
               const response = await browser.tabs.sendMessage(tab.id, {
                 scope: SCRAPER_MESSAGE_SCOPE,
                 command: 'GET_FILTERS',
               });
-              const filters = (response as { filters?: unknown } | undefined)?.filters;
+              const typedResponse = response as
+                | { filters?: unknown; selectedValue?: string | null }
+                | undefined;
+              const filters = typedResponse?.filters;
+              const selectedValue = typedResponse?.selectedValue ?? null;
               if (Array.isArray(filters) && filters.length) {
-                return { success: true, data: { filters: filters as TimeFilterOption[] } };
+                return {
+                  success: true,
+                  data: { filters: filters as TimeFilterOption[], selectedValue },
+                };
               }
             } catch (error) {
               console.warn('Failed to query years from content script', error);
             }
-            return { success: true, data: { filters: getFilterFallback() } };
+            return { success: true, data: { filters: getFilterFallback(), selectedValue: null } };
           })
-          .catch(() => ({ success: true, data: { filters: getFilterFallback() } }));
+          .catch(() => ({
+            success: true,
+            data: { filters: getFilterFallback(), selectedValue: null },
+          }));
       }
 
       case 'START_SCRAPE': {
